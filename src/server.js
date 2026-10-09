@@ -1,4 +1,6 @@
 require('dotenv').config();
+const missing = ['CLIENT_ID', 'CLIENT_SECRET', 'CALLBACK_URL', 'MONGODB_URI', 'SESSION_SECRET', 'INTERNAL_SECRET'].filter((k) => !process.env[k]);
+if (missing.length) { console.error(`Missing environment variables: ${missing.join(', ')}`); process.exit(1); }
 const express = require('express');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
@@ -27,7 +29,7 @@ app.use(express.json({ limit: '200kb' }));
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false, saveUninitialized: false,
-  store: MongoStore.create({ mongoUrl: process.env.MONGODB_URI }),
+  store: MongoStore.create({ mongoUrl: process.env.MONGODB_URI, mongoOptions: { serverSelectionTimeoutMS: 15000 } }),
   cookie: { secure: 'auto', httpOnly: true, sameSite: 'lax', maxAge: 7 * 864e5 },
 }));
 app.use(passport.initialize());
@@ -131,4 +133,10 @@ app.get('/api/guilds/:id/cases', authed, canManage, wrap(async (req, res) => {
 app.use(express.static(path.join(__dirname, '../public')));
 app.use((err, _req, res, _next) => { console.error(err); res.status(500).json({ error: 'Internal error' }); });
 
-mongoose.connect(process.env.MONGODB_URI).then(() => app.listen(process.env.PORT || 3000, () => console.log('Dashboard up')));
+mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 15000 })
+  .then(() => app.listen(process.env.PORT || 3000, () => console.log('Dashboard up')))
+  .catch((e) => {
+    console.error(`MongoDB connection failed: ${e.message.split('\n')[0]}`);
+    console.error('Check MONGODB_URI, and in Atlas > Network Access allow Render (or 0.0.0.0/0).');
+    process.exit(1);
+  });
