@@ -1,41 +1,32 @@
+// SHARED FILE: keep identical in HeavenCloud-bot/src and Render-dashboard/src.
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
-const GuildConfig = mongoose.models.GuildConfig || mongoose.model('GuildConfig', new Schema({
-  guildId: { type: String, unique: true, index: true },
-  yaml: { type: String, required: true },
-  version: { type: Number, default: 1 },
-  updatedAt: { type: Date, default: Date.now },
-  updatedBy: String,
-}));
+const Feed = mongoose.models.Feed || mongoose.model('Feed', (() => {
+  const s = new Schema({
+    guildId: { type: String, required: true },
+    type: { type: String, enum: ['wotd', 'dailyfact'], required: true },
+    channelId: { type: String, required: true },
+    roleId: { type: String, default: null },
+    emoji: { type: String, required: true },
+    intervalMs: { type: Number, required: true },
+    nextRunAt: { type: Date, required: true },
+    lastPostAt: Date,
+    failures: { type: Number, default: 0 },
+    enabled: { type: Boolean, default: true },
+    createdBy: String,
+  });
+  s.index({ guildId: 1, type: 1 }, { unique: true });
+  s.index({ enabled: 1, nextRunAt: 1 });
+  return s;
+})());
 
-const ConfigVersion = mongoose.models.ConfigVersion || mongoose.model('ConfigVersion', new Schema({
+// Remembers what was already posted so words/facts don't repeat.
+const Used = mongoose.models.Used || mongoose.model('Used', new Schema({
   guildId: { type: String, index: true },
-  version: Number,
-  yaml: String,
-  authorId: String,
-  authorName: String,
-  note: String,
+  type: String,
+  key: String,
   createdAt: { type: Date, default: Date.now },
 }));
 
-const Counter = mongoose.models.Counter || mongoose.model('Counter', new Schema({
-  _id: String, seq: { type: Number, default: 0 },
-}));
-
-const ModCase = mongoose.models.ModCase || mongoose.model('ModCase', new Schema({
-  guildId: { type: String, index: true },
-  caseId: Number,
-  type: String, // ban | kick | timeout | warn | automod
-  userId: { type: String, index: true },
-  modId: String,
-  reason: { type: String, default: 'No reason provided' },
-  createdAt: { type: Date, default: Date.now },
-}));
-
-async function nextCaseId(guildId) {
-  const c = await Counter.findByIdAndUpdate(guildId, { $inc: { seq: 1 } }, { upsert: true, new: true });
-  return c.seq;
-}
-
-module.exports = { GuildConfig, ConfigVersion, ModCase, nextCaseId };
+module.exports = { Feed, Used };
