@@ -1,196 +1,54 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ModBot Dashboard</title>
+<title>DailyBot</title>
 <style>
 :root{color-scheme:dark}
-*{box-sizing:border-box}
 body{margin:0;font-family:system-ui,sans-serif;background:#0f1115;color:#e6e6e6}
 header{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;border-bottom:1px solid #23262d}
-main{max-width:1000px;margin:0 auto;padding:1rem}
-.bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:.5rem 0}
-button,select{font:inherit;padding:.45rem .8rem;border-radius:6px;border:1px solid #333845;background:#1a1d24;color:inherit;cursor:pointer}
-button.on,button.primary{background:#4f6bff;border-color:#4f6bff;color:#fff}
-button:disabled{opacity:.5;cursor:default}
-a{color:#7aa2ff}
-#editor{height:62vh;border:1px solid #23262d;border-radius:6px;overflow:hidden}
-#editor textarea{width:100%;height:100%;background:#14161b;color:#e6e6e6;border:0;padding:.75rem;font:13px/1.5 ui-monospace,monospace;resize:none}
-#status.ok{color:#4ade80}#status.bad{color:#f87171}
-#errors{list-style:none;padding:0;margin:.5rem 0}
-#errors li{padding:.35rem .5rem;margin:.2rem 0;background:#2a1517;border-left:3px solid #f87171;border-radius:4px;cursor:pointer;font-size:.9rem}
-ul.list{list-style:none;padding:0}
-ul.list li{display:flex;gap:.5rem;align-items:center;padding:.5rem;border-bottom:1px solid #23262d;flex-wrap:wrap}
-ul.list li span.grow{flex:1;min-width:140px}
-table{width:100%;border-collapse:collapse;font-size:.9rem}
-td,th{padding:.4rem;border-bottom:1px solid #23262d;text-align:left;vertical-align:top}
-.muted{color:#8b93a5}
+main{max-width:720px;margin:0 auto;padding:1rem}
+button,select{font:inherit;padding:.5rem .9rem;border-radius:6px;border:1px solid #333845;background:#1a1d24;color:inherit;cursor:pointer}
+.primary{background:#4f6bff;border-color:#4f6bff;color:#fff}
+a{color:#7aa2ff;text-decoration:none}.muted{color:#8b93a5}
+.card{border:1px solid #23262d;border-radius:8px;padding:.75rem 1rem;margin:.6rem 0}
 </style></head>
 <body>
-<header><b>ModBot</b><span id="who" class="muted"></span></header>
-
-<main id="login" hidden><p><a href="/auth/discord"><button class="primary">Login with Discord</button></a></p></main>
-
-<main id="app" hidden>
-  <div class="bar">
+<header><b>DailyBot</b><span id="who" class="muted"></span></header>
+<main>
+  <p id="msg" class="muted">Loading…</p>
+  <p><a id="invite" href="#" target="_blank" rel="noopener"><button class="primary">Add bot to a server</button></a></p>
+  <div id="login" hidden><a href="/auth/discord"><button class="primary">Login with Discord</button></a></div>
+  <div id="app" hidden>
     <select id="guild"></select>
-    <button data-tab="config" class="on">Config</button>
-    <button data-tab="history">History</button>
-    <button data-tab="cases">Cases</button>
-    <a href="/auth/logout" style="margin-left:auto">Logout</a>
+    <p class="muted">Set feeds up in Discord with <code>/wotd</code>, <code>/dailyfact</code> and <code>/feeds</code>.</p>
+    <div id="feeds"></div>
+    <p><a href="/auth/logout">Logout</a></p>
   </div>
-
-  <section id="tab-config">
-    <div id="editor"></div>
-    <div class="bar">
-      <button id="save" class="primary">Save</button>
-      <button id="reload">Reload</button>
-      <span id="status" class="muted"></span>
-    </div>
-    <ul id="errors"></ul>
-  </section>
-
-  <section id="tab-history" hidden><ul id="hist" class="list"></ul></section>
-  <section id="tab-cases" hidden><table id="cases"></table></section>
 </main>
-
-<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
-const state = { guild: null, version: 0, editor: null };
+const NAMES = { wotd: 'Word of the Day', dailyfact: 'Daily Fact' };
+const el = (t, p = {}, ...k) => { const e = Object.assign(document.createElement(t), p); k.forEach((x) => e.append(x)); return e; };
+async function api(u) { const r = await fetch(u); if (!r.ok) throw new Error(r.status); return r.json(); }
+const hours = (ms) => (ms % 864e5 === 0 ? `${ms / 864e5}d` : ms % 36e5 === 0 ? `${ms / 36e5}h` : `${Math.round(ms / 6e4)}m`);
 
-async function api(url, opts = {}) {
-  const r = await fetch(url, { headers: { 'content-type': 'application/json' }, ...opts });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw Object.assign(new Error(j.error || r.statusText), { status: r.status, body: j });
-  return j;
+async function loadFeeds() {
+  const box = $('#feeds'); box.replaceChildren();
+  const feeds = await api(`/api/guilds/${$('#guild').value}/feeds`);
+  if (!feeds.length) return box.append(el('p', { className: 'muted', textContent: 'No feeds set up in this server yet.' }));
+  feeds.forEach((f) => box.append(el('div', { className: 'card' },
+    el('b', { textContent: NAMES[f.type] + (f.enabled ? '' : ' (disabled)') }),
+    el('div', { className: 'muted', textContent: `Channel ${f.channelId} · every ${hours(f.intervalMs)} · ${f.emoji} · next ${new Date(f.nextRunAt).toLocaleString()}` }))));
 }
-const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach((k) => e.append(k)); return e; };
-
-// ---------- editor (Monaco with textarea fallback) ----------
-const SNIPPETS = [
-  { label: 'rule: block words', doc: 'Delete messages containing words',
-    text: 'block_words:\n  enabled: true\n  triggers:\n    - match_words: { words: ["${1:word}"], whole_word: true }\n  actions:\n    clean: true\n    reply: "${2:Watch your language.}"' },
-  { label: 'rule: block links', doc: 'Allow only listed domains',
-    text: 'links:\n  enabled: true\n  triggers:\n    - links: { allow_domains: ["${1:youtube.com}"] }\n  actions:\n    clean: true' },
-  { label: 'rule: caps', doc: 'Excessive capital letters',
-    text: 'caps:\n  enabled: true\n  triggers:\n    - caps: { min_length: 15, percent: 70 }\n  actions:\n    clean: true' },
-  { label: 'trigger: spam', doc: 'Too many messages', text: '- spam: { max_messages: ${1:5}, seconds: ${2:5} }' },
-  { label: 'trigger: match_regex', doc: 'Regex patterns', text: '- match_regex: { patterns: ["${1:pattern}"] }' },
-  { label: 'override: channel', doc: 'Change config in specific channels',
-    text: '- channel: ["${1:CHANNEL_ID}"]\n  config:\n    ${2:rules}:\n      ${3:no_invites}: { enabled: false }' },
-];
-
-function initEditor() {
-  return new Promise((resolve) => {
-    const host = $('#editor');
-    const fallback = () => {
-      const ta = el('textarea', { spellcheck: false });
-      host.append(ta);
-      resolve({ get: () => ta.value, set: (v) => { ta.value = v; }, onChange: (fn) => ta.addEventListener('input', fn), mark() {}, reveal() {} });
-    };
-    if (!window.require) return fallback();
-    window.MonacoEnvironment = { getWorkerUrl: () => `data:text/javascript;charset=utf-8,${encodeURIComponent(
-      "self.MonacoEnvironment={baseUrl:'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/'};importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/base/worker/workerMain.js');")}` };
-    require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
-    require(['vs/editor/editor.main'], () => {
-      const ed = monaco.editor.create(host, { language: 'yaml', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: false }, tabSize: 2, insertSpaces: true, fontSize: 14, scrollBeyondLastLine: false });
-      monaco.languages.registerCompletionItemProvider('yaml', {
-        provideCompletionItems(model, pos) {
-          const w = model.getWordUntilPosition(pos);
-          const range = { startLineNumber: pos.lineNumber, endLineNumber: pos.lineNumber, startColumn: w.startColumn, endColumn: w.endColumn };
-          return { suggestions: SNIPPETS.map((s) => ({ label: s.label, documentation: s.doc, insertText: s.text, range,
-            kind: monaco.languages.CompletionItemKind.Snippet,
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet })) };
-        },
-      });
-      resolve({
-        get: () => ed.getValue(),
-        set: (v) => ed.setValue(v),
-        onChange: (fn) => ed.onDidChangeModelContent(fn),
-        mark: (errs) => monaco.editor.setModelMarkers(ed.getModel(), 'v', errs.map((e) => ({
-          severity: monaco.MarkerSeverity.Error, message: e.message,
-          startLineNumber: e.line, startColumn: e.col, endLineNumber: e.line, endColumn: 1000 }))),
-        reveal: (line) => { ed.revealLineInCenter(line); ed.setPosition({ lineNumber: line, column: 1 }); ed.focus(); },
-      });
-    });
-    setTimeout(() => { if (!state.editor && !host.firstChild) fallback(); }, 8000);
-  });
-}
-
-// ---------- validation ----------
-let timer;
-function showErrors(errs) {
-  state.editor.mark(errs);
-  const ul = $('#errors'); ul.replaceChildren();
-  errs.slice(0, 20).forEach((e) => ul.append(el('li', { textContent: `Line ${e.line}: ${e.message}`, onclick: () => state.editor.reveal(e.line) })));
-  const s = $('#status');
-  if (errs.length) { s.textContent = `${errs.length} error${errs.length > 1 ? 's' : ''}`; s.className = 'bad'; }
-  else { s.textContent = 'Valid ✔'; s.className = 'ok'; }
-}
-function scheduleValidate() {
-  clearTimeout(timer);
-  timer = setTimeout(async () => {
-    try { const r = await api(`/api/guilds/${state.guild}/config/validate`, { method: 'POST', body: JSON.stringify({ yaml: state.editor.get() }) }); showErrors(r.errors); } catch {}
-  }, 600);
-}
-
-// ---------- actions ----------
-async function loadConfig() {
-  const c = await api(`/api/guilds/${state.guild}/config`);
-  state.version = c.version;
-  state.editor.set(c.yaml);
-  $('#status').textContent = `Loaded v${c.version}`; $('#status').className = 'muted';
-  $('#errors').replaceChildren();
-  scheduleValidate();
-}
-async function save() {
-  $('#save').disabled = true;
-  try {
-    const r = await api(`/api/guilds/${state.guild}/config`, { method: 'POST', body: JSON.stringify({ yaml: state.editor.get(), baseVersion: state.version }) });
-    state.version = r.version;
-    $('#status').textContent = `Saved as v${r.version} ✔`; $('#status').className = 'ok';
-  } catch (e) {
-    if (e.body?.errors) showErrors(e.body.errors);
-    else { $('#status').textContent = e.message; $('#status').className = 'bad'; }
-  } finally { $('#save').disabled = false; }
-}
-async function loadHistory() {
-  const list = await api(`/api/guilds/${state.guild}/config/history`);
-  const ul = $('#hist'); ul.replaceChildren();
-  list.forEach((v) => ul.append(el('li', {},
-    el('span', { className: 'grow', textContent: `v${v.version} · ${v.authorName || 'unknown'} · ${new Date(v.createdAt).toLocaleString()}${v.note ? ' · ' + v.note : ''}` }),
-    el('button', { textContent: 'Load in editor', onclick: async () => { const r = await api(`/api/guilds/${state.guild}/config/history/${v.version}`); state.editor.set(r.yaml); showTab('config'); scheduleValidate(); } }),
-    el('button', { textContent: 'Restore', onclick: async () => {
-      if (!confirm(`Restore v${v.version}? This saves it as a new version.`)) return;
-      try { await api(`/api/guilds/${state.guild}/config/rollback`, { method: 'POST', body: JSON.stringify({ version: v.version }) }); await loadConfig(); await loadHistory(); }
-      catch (e) { alert(e.body?.errors?.[0]?.message || e.message); }
-    } }))));
-}
-async function loadCases() {
-  const list = await api(`/api/guilds/${state.guild}/cases`);
-  const t = $('#cases'); t.replaceChildren(el('tr', {}, ...['#', 'Type', 'User', 'Mod', 'Reason', 'When'].map((h) => el('th', { textContent: h }))));
-  list.forEach((c) => t.append(el('tr', {}, ...[c.caseId, c.type, c.userId, c.modId, c.reason, new Date(c.createdAt).toLocaleString()].map((x) => el('td', { textContent: String(x) })))));
-}
-function showTab(name) {
-  ['config', 'history', 'cases'].forEach((t) => { $(`#tab-${t}`).hidden = t !== name; });
-  document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
-  if (name === 'history') loadHistory(); if (name === 'cases') loadCases();
-}
-
 (async () => {
-  let guilds;
-  try { guilds = await api('/api/guilds'); } catch { $('#login').hidden = false; return; }
-  const me = await api('/api/me'); $('#who').textContent = me.username;
-  $('#app').hidden = false;
-  const sel = $('#guild');
-  guilds.forEach((g) => sel.append(el('option', { value: g.id, textContent: g.name })));
-  state.guild = sel.value;
-  state.editor = await initEditor();
-  state.editor.onChange(scheduleValidate);
-  sel.onchange = () => { state.guild = sel.value; loadConfig(); showTab('config'); };
-  document.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => showTab(b.dataset.tab); });
-  $('#save').onclick = save; $('#reload').onclick = loadConfig;
-  if (state.guild) loadConfig(); else $('#status').textContent = 'No manageable servers found.';
+  try { $('#invite').href = (await api('/api/invite')).url; } catch {}
+  try {
+    const guilds = await api('/api/guilds');
+    $('#who').textContent = (await api('/api/me')).username;
+    $('#msg').hidden = true; $('#app').hidden = false;
+    guilds.forEach((g) => $('#guild').append(el('option', { value: g.id, textContent: g.name })));
+    $('#guild').onchange = loadFeeds;
+    if (guilds.length) loadFeeds(); else $('#feeds').textContent = 'No servers you manage.';
+  } catch { $('#msg').hidden = true; $('#login').hidden = false; }
 })();
-</script>
-</body></html>
+</script></body></html>
