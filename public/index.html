@@ -7,10 +7,19 @@
 body{margin:0;font-family:system-ui,sans-serif;background:#0f1115;color:#e6e6e6}
 header{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;border-bottom:1px solid #23262d}
 main{max-width:720px;margin:0 auto;padding:1rem}
-button,select{font:inherit;padding:.5rem .9rem;border-radius:6px;border:1px solid #333845;background:#1a1d24;color:inherit;cursor:pointer}
+button,select,input[type=number]{font:inherit;padding:.5rem .9rem;border-radius:6px;border:1px solid #333845;background:#1a1d24;color:inherit}
+button{cursor:pointer}button:disabled{opacity:.5;cursor:default}
+select{max-width:100%}
 .primary{background:#4f6bff;border-color:#4f6bff;color:#fff}
-a{color:#7aa2ff;text-decoration:none}.muted{color:#8b93a5}
+a{color:#7aa2ff;text-decoration:none}.muted{color:#8b93a5}.small{font-size:.85rem}
 .card{border:1px solid #23262d;border-radius:8px;padding:.75rem 1rem;margin:.6rem 0}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin:.55rem 0}
+.row label{display:flex;gap:.4rem;align-items:center}
+.top{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+.badge{font-size:.75rem;padding:.1rem .5rem;border-radius:99px;background:#23262d}
+.on{background:#1d3b2a;color:#5ad17a}.off{background:#3b1d1d;color:#ff8080}
+.ok{color:#5ad17a}.err{color:#ff7b7b}
+h3{margin:1.4rem 0 .2rem}
 </style></head>
 <body>
 <header><b>DailyBot</b><span id="who" class="muted"></span></header>
@@ -20,7 +29,10 @@ a{color:#7aa2ff;text-decoration:none}.muted{color:#8b93a5}
   <div id="login" hidden><a href="/auth/discord"><button class="primary">Login with Discord</button></a></div>
   <div id="app" hidden>
     <select id="guild"></select>
-    <p class="muted">Set feeds up in Discord with <code>/wotd</code>, <code>/dailyfact</code> and <code>/feeds</code>.</p>
+    <h3>Games</h3>
+    <div id="games"></div>
+    <h3>Feeds</h3>
+    <p class="muted small">Set feeds up in Discord with <code>/wotd</code>, <code>/dailyfact</code> and <code>/feeds</code>.</p>
     <div id="feeds"></div>
     <p><a href="/auth/logout">Logout</a></p>
   </div>
@@ -29,26 +41,117 @@ a{color:#7aa2ff;text-decoration:none}.muted{color:#8b93a5}
 const $ = (s) => document.querySelector(s);
 const NAMES = { wotd: 'Word of the Day', dailyfact: 'Daily Fact' };
 const el = (t, p = {}, ...k) => { const e = Object.assign(document.createElement(t), p); k.forEach((x) => e.append(x)); return e; };
-async function api(u) { const r = await fetch(u); if (!r.ok) throw new Error(r.status); return r.json(); }
+// Always resolves { ok, status, data } so callers can show the server's message.
+async function call(method, url, body) {
+  try {
+    const r = await fetch(url, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+    return { ok: r.ok, status: r.status, data: await r.json().catch(() => ({})) };
+  } catch { return { ok: false, status: 0, data: { error: 'Network error. Check your connection.' } }; }
+}
+async function api(u) { const r = await call('GET', u); if (!r.ok) throw new Error(r.status); return r.data; }
 const hours = (ms) => (ms % 864e5 === 0 ? `${ms / 864e5}d` : ms % 36e5 === 0 ? `${ms / 36e5}h` : `${Math.round(ms / 6e4)}m`);
+let inviteUrl = '#';
+let guilds = [];
 
+// ---------------- feeds (read-only) ----------------
 async function loadFeeds() {
   const box = $('#feeds'); box.replaceChildren();
-  const feeds = await api(`/api/guilds/${$('#guild').value}/feeds`);
-  if (!feeds.length) return box.append(el('p', { className: 'muted', textContent: 'No feeds set up in this server yet.' }));
-  feeds.forEach((f) => box.append(el('div', { className: 'card' },
+  const r = await call('GET', `/api/guilds/${$('#guild').value}/feeds`);
+  if (!r.ok) return box.append(el('p', { className: 'muted', textContent: 'Could not load feeds.' }));
+  if (!r.data.length) return box.append(el('p', { className: 'muted', textContent: 'No feeds set up in this server yet.' }));
+  r.data.forEach((f) => box.append(el('div', { className: 'card' },
     el('b', { textContent: NAMES[f.type] + (f.enabled ? '' : ' (disabled)') }),
     el('div', { className: 'muted', textContent: `Channel ${f.channelId} · every ${hours(f.intervalMs)} · ${f.emoji} · next ${new Date(f.nextRunAt).toLocaleString()}` }))));
 }
+
+// ---------------- games ----------------
+const GAME_INFO = {
+  countryguess: { title: 'Country Guess', blurb: 'Members play with !countryguess (or !cg) in this channel.' },
+  wordstory: { title: 'Word Story', blurb: 'Members write a story one word at a time.', warn: 'Saving restarts the story and posts a setup message in the channel.' },
+  wordchain: { title: 'Word Chain', blurb: 'Each word must start with the last letter of the previous one.', warn: 'Saving restarts the chain and posts a setup message in the channel.' },
+};
+
+function renderGame(guildId, key, cfg, channels, limits) {
+  const info = GAME_INFO[key];
+  const card = el('div', { className: 'card' });
+  const badge = el('span', { className: 'badge ' + (cfg ? (cfg.enabled ? 'on' : 'off') : ''), textContent: cfg ? (cfg.enabled ? 'On' : 'Off') : 'Not set up' });
+  const top = el('div', { className: 'top' }, el('b', { textContent: info.title }), badge);
+  const result = el('div', { className: 'small' });
+  const show = (ok, text) => { result.className = 'small ' + (ok ? 'ok' : 'err'); result.textContent = text; };
+
+  const select = el('select');
+  if (!cfg) select.append(el('option', { value: '', textContent: 'Create a channel for me (Activity category)' }));
+  channels.forEach((c) => select.append(el('option', { value: c.id, textContent: `#${c.name}${c.parent ? ` (${c.parent})` : ''}` })));
+  if (cfg) select.value = cfg.channelId;
+  const channelRow = el('div', { className: 'row' }, el('span', { className: 'muted', textContent: 'Channel' }), select);
+
+  const options = el('div');
+  let trigger; let consecutive; let repeating;
+  const checkbox = (label, checked) => { const i = el('input', { type: 'checkbox', checked: !!checked }); return [i, el('label', {}, i, label)]; };
+  if (key === 'wordstory') {
+    trigger = el('input', { type: 'number', min: limits.min, max: limits.max, value: cfg?.trigger ?? limits.default, style: 'width:6rem' });
+    const [ci, cl] = checkbox('Allow the same person to write twice in a row', cfg?.consecutive); consecutive = ci;
+    options.append(el('div', { className: 'row' }, el('label', {}, 'Words per story', trigger), el('span', { className: 'muted small', textContent: `(${limits.min}-${limits.max})` })), el('div', { className: 'row' }, cl));
+  }
+  if (key === 'wordchain') {
+    const [ri, rl] = checkbox('Allow repeated words', cfg?.repeatingValid); repeating = ri;
+    const [ci, cl] = checkbox('Allow the same person to write twice in a row', cfg?.consecutive); consecutive = ci;
+    options.append(el('div', { className: 'row' }, rl), el('div', { className: 'row' }, cl));
+  }
+
+  const save = el('button', { className: 'primary', textContent: cfg ? 'Save' : 'Set up' });
+  save.onclick = async () => {
+    const body = { channelId: select.value || null };
+    if (trigger) body.trigger = parseInt(trigger.value, 10);
+    if (consecutive) body.consecutive = consecutive.checked;
+    if (repeating) body.repeatingValid = repeating.checked;
+    save.disabled = true; show(true, 'Saving…');
+    const r = await call('PUT', `/api/guilds/${guildId}/games/${key}`, body);
+    save.disabled = false;
+    if (r.ok) { show(true, r.data.message || 'Saved.'); loadGames(); } else show(false, r.data.error || `Failed (${r.status}).`);
+  };
+  const actions = el('div', { className: 'row' }, save);
+  if (cfg) {
+    const toggle = el('button', { textContent: cfg.enabled ? 'Disable' : 'Enable' });
+    toggle.onclick = async () => {
+      toggle.disabled = true;
+      const r = await call('POST', `/api/guilds/${guildId}/games/${key}/enabled`, { enabled: !cfg.enabled });
+      if (r.ok) loadGames(); else { toggle.disabled = false; show(false, r.data.error || `Failed (${r.status}).`); }
+    };
+    actions.append(toggle);
+  }
+  card.append(top, el('div', { className: 'muted small', textContent: info.blurb }), channelRow, options, actions);
+  if (info.warn) card.append(el('div', { className: 'muted small', textContent: info.warn }));
+  card.append(result);
+  return card;
+}
+
+let gamesToken = 0;
+async function loadGames() {
+  const box = $('#games');
+  const g = guilds.find((x) => x.id === $('#guild').value);
+  const note = (text, withInvite) => { box.replaceChildren(el('p', { className: 'muted', textContent: text })); if (withInvite) box.append(el('a', { href: inviteUrl, target: '_blank', rel: 'noopener' }, el('button', { className: 'primary', textContent: 'Add bot to this server' }))); };
+  if (!g) return note('Pick a server.');
+  if (!g.admin) return note('You need the Administrator permission in this server to change games.');
+  if (g.botIn === false) return note('The bot is not in this server yet.', true);
+  const token = ++gamesToken;
+  const r = await call('GET', `/api/guilds/${g.id}/games`);
+  if (token !== gamesToken) return; // the user switched servers meanwhile
+  if (!r.ok) return r.data.error === 'not_in_guild' ? note('The bot is not in this server yet.', true) : note(r.data.error || 'Could not load games.');
+  box.replaceChildren(...Object.keys(GAME_INFO).map((k) => renderGame(g.id, k, r.data.games[k], r.data.channels, r.data.limits.trigger)));
+}
+
+function loadGuild() { loadGames(); loadFeeds(); }
+
 (async () => {
-  try { $('#invite').href = (await api('/api/invite')).url; } catch {}
+  try { inviteUrl = (await api('/api/invite')).url; $('#invite').href = inviteUrl; } catch {}
   try {
-    const guilds = await api('/api/guilds');
+    guilds = await api('/api/guilds');
     $('#who').textContent = (await api('/api/me')).username;
     $('#msg').hidden = true; $('#app').hidden = false;
     guilds.forEach((g) => $('#guild').append(el('option', { value: g.id, textContent: g.name })));
-    $('#guild').onchange = loadFeeds;
-    if (guilds.length) loadFeeds(); else $('#feeds').textContent = 'No servers you manage.';
+    $('#guild').onchange = loadGuild;
+    if (guilds.length) loadGuild(); else { $('#games').textContent = 'No servers you manage.'; $('#feeds').textContent = ''; }
   } catch { $('#msg').hidden = true; $('#login').hidden = false; }
 })();
 </script></body></html>
