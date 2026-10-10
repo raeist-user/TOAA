@@ -1,5 +1,6 @@
 require('dotenv').config();
-const missing = ['CLIENT_ID', 'CLIENT_SECRET', 'CALLBACK_URL', 'MONGODB_URI', 'SESSION_SECRET'].filter((k) => !process.env[k]);
+const missing = ['CLIENT_ID', 'CLIENT_SECRET', 'MONGODB_URI', 'SESSION_SECRET'].filter((k) => !process.env[k]);
+if (!process.env.CALLBACK_URL && !process.env.RENDER_EXTERNAL_URL) missing.push('CALLBACK_URL');
 if (missing.length) { console.error(`Missing environment variables: ${missing.join(', ')}`); process.exit(1); }
 
 const express = require('express');
@@ -11,6 +12,24 @@ const mongoose = require('mongoose');
 const path = require('path');
 const { Feed } = require('./models');
 
+// The OAuth2 redirect must match, character for character, one of the Redirects in
+// Discord Developer Portal > OAuth2. Normalise whatever is in CALLBACK_URL so common slips still work:
+// missing path (just the site address), missing https://, http:// on a public host, trailing slash.
+function buildCallbackUrl() {
+  let raw = (process.env.CALLBACK_URL || process.env.RENDER_EXTERNAL_URL || '').trim().replace(/^["']|["']$/g, '');
+  if (!/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
+  const url = new URL(raw);
+  const local = ['localhost', '127.0.0.1'].includes(url.hostname);
+  if (!local) url.protocol = 'https:'; // Render and other hosts serve https only
+  if (url.pathname === '/' || url.pathname === '') url.pathname = '/auth/callback';
+  url.pathname = url.pathname.replace(/\/+$/, '');
+  url.search = ''; url.hash = '';
+  return url.toString();
+}
+const CALLBACK_URL = buildCallbackUrl();
+console.log(`OAuth2 redirect URI in use: ${CALLBACK_URL}`);
+console.log('If Discord says "Invalid OAuth2 redirect_uri", add EXACTLY that URL in Developer Portal > OAuth2 > Redirects and press Save.');
+
 const MANAGE_GUILD = 0x20n;
 const ADMIN = 0x8n;
 // View Channel, Send Messages, Embed Links, Add Reactions, Read History, Mention Everyone, Manage Roles
@@ -21,7 +40,7 @@ passport.deserializeUser((u, d) => d(null, u));
 passport.use(new Strategy({
   clientID: process.env.CLIENT_ID,
   clientSecret: process.env.CLIENT_SECRET,
-  callbackURL: process.env.CALLBACK_URL,
+  callbackURL: CALLBACK_URL,
   scope: ['identify', 'guilds'],
 }, (_a, _r, profile, done) => done(null, profile)));
 
