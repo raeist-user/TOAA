@@ -10,7 +10,7 @@ const passport = require('passport');
 const { Strategy } = require('passport-discord');
 const mongoose = require('mongoose');
 const path = require('path');
-const { Feed } = require('./models');
+const { Feed, CountryGuessConfig, WordStoryConfig, WordChainConfig, WebJob, GuildInfo } = require('./models');
 
 // The OAuth2 redirect must match, character for character, one of the Redirects in
 // Discord Developer Portal > OAuth2. Normalise whatever is in CALLBACK_URL so common slips still work:
@@ -65,26 +65,25 @@ const canManage = (req, res, next) => {
   next();
 };
 
-// ---- talking to the bot (game settings live in the bot, which keeps their live state) ----
-const BOT_URL = (process.env.BOT_URL || '').replace(/\/+$/, '');
+// ---- games: the website and the bot talk through MongoDB (the bot's host has no open web port) ----
+// Reads come straight from the database. Changes are queued as a WebJob; the bot runs it within a few
+// seconds (re-checking the user is an Administrator) and writes the result back, which we wait for here.
 const GAMES = new Set(['countryguess', 'wordstory', 'wordchain']);
-const botConfigured = () => !!(BOT_URL && process.env.INTERNAL_SECRET);
-if (!botConfigured()) console.warn('BOT_URL / INTERNAL_SECRET not set: the website cannot configure games until you add them.');
+const TRIGGER_LIMITS = { min: 10, max: 200, default: 100 }; // same as the bot's Word Story limits
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function callBot(method, path, userId, body, timeoutMs = 30000) {
-  if (!botConfigured()) throw Object.assign(new Error('The website is not connected to the bot yet (BOT_URL and INTERNAL_SECRET are missing).'), { status: 503 });
-  let res;
-  try {
-    res = await fetch(`${BOT_URL}/internal${path}`, {
-      method,
-      headers: { 'content-type': 'application/json', 'x-secret': process.env.INTERNAL_SECRET, ...(userId ? { 'x-user-id': userId } : {}) },
-      body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-  } catch {
-    throw Object.assign(new Error('The bot is unreachable right now. If it just restarted, try again in a minute.'), { status: 502 });
+async function runJob(guildId, userId, game, action, payload) {
+  const job = await WebJob.create({ guildId, userId, game, action, payload });
+  const deadline = Date.now() + 25000;
+  while (Date.now() < deadline) {
+    await sleep(700);
+    const j = await WebJob.findById(job._id).lean();
+    if (j && (j.status === 'done' || j.status === 'error')) {
+      return j.status === 'done' ? { status: 200, data: { ok: true, message: j.message } } : { status: 400, data: { error: j.message } };
+    }
   }
-  return { status: res.status, data: await res.json().catch(() => ({})) };
+  await WebJob.deleteOne({ _id: job._id, status: 'pending' }); // never let it run late, after the user has given up
+  return { status: 504, data: { error: "The bot didn't answer in time. Check that it is online, then try again." } };
 }
 
 const isAdminOf = (g) => !!g && (g.owner || (BigInt(g.permissions) & ADMIN) !== 0n);
@@ -106,11 +105,9 @@ app.get('/api/guilds', authed, wrap(async (req, res) => {
   const list = req.user.guilds
     .filter((g) => g.owner || (BigInt(g.permissions) & (MANAGE_GUILD | ADMIN)))
     .map((g) => ({ id: g.id, name: g.name, admin: isAdminOf(g), botIn: null }));
-  if (botConfigured() && list.length) {
-    try { // is the bot in each server? (null = couldn't ask)
-      const r = await callBot('GET', `/present?ids=${list.map((g) => g.id).join(',')}`, null, null, 6000);
-      if (r.status === 200) { const here = new Set(r.data.present); list.forEach((g) => { g.botIn = here.has(g.id); }); }
-    } catch { /* leave botIn as null */ }
+  if (list.length) {
+    const here = new Set((await GuildInfo.find({ guildId: { $in: list.map((g) => g.id) } }, { guildId: 1 }).lean()).map((x) => x.guildId));
+    list.forEach((g) => { g.botIn = here.has(g.id); });
   }
   res.json(list);
 }));
@@ -119,9 +116,24 @@ app.get('/api/guilds/:id/feeds', authed, canManage, wrap(async (req, res) => {
 }));
 
 // ---- games: Country Guess, Word Story, Word Chain (Administrator only) ----
+const pick = {
+  countryguess: (c) => c && { enabled: c.enabled !== false, channelId: c.channelId },
+  wordstory: (c) => c && { enabled: c.enabled !== false, channelId: c.channelId, trigger: c.trigger, consecutive: c.consecutive === true, count: c.count ?? 0 },
+  wordchain: (c) => c && { enabled: c.enabled !== false, channelId: c.channelId, repeatingValid: c.repeatingValid === true, consecutive: c.consecutive === true, streak: c.streak ?? 0 },
+};
 app.get('/api/guilds/:id/games', authed, adminOnly, wrap(async (req, res) => {
-  const r = await callBot('GET', `/guilds/${req.params.id}/games`, req.user.id);
-  res.status(r.status).json(r.data);
+  const guildId = req.params.id;
+  const info = await GuildInfo.findOne({ guildId }).lean();
+  if (!info) return res.status(404).json({ error: 'not_in_guild' });
+  const [cg, ws, wc] = await Promise.all([
+    CountryGuessConfig.findOne({ guildId }).lean(), WordStoryConfig.findOne({ guildId }).lean(), WordChainConfig.findOne({ guildId }).lean(),
+  ]);
+  res.json({
+    guild: { id: guildId, name: info.name },
+    channels: info.channels.map((c) => ({ id: c.id, name: c.name, parent: c.parent || null })),
+    limits: { trigger: TRIGGER_LIMITS },
+    games: { countryguess: pick.countryguess(cg) ?? null, wordstory: pick.wordstory(ws) ?? null, wordchain: pick.wordchain(wc) ?? null },
+  });
 }));
 app.put('/api/guilds/:id/games/:game', authed, jsonOnly, adminOnly, knownGame, wrap(async (req, res) => {
   const key = `${req.user.id}:${req.params.id}:${req.params.game}`;
@@ -129,18 +141,18 @@ app.put('/api/guilds/:id/games/:game', authed, jsonOnly, adminOnly, knownGame, w
   recent.set(key, Date.now());
   if (recent.size > 2000) for (const [k, t] of recent) if (Date.now() - t > 60000) recent.delete(k);
   const b = req.body || {};
-  const body = {
+  const payload = {
     channelId: typeof b.channelId === 'string' && /^\d{15,25}$/.test(b.channelId) ? b.channelId : null,
     trigger: Number.isInteger(b.trigger) ? b.trigger : null,
     consecutive: typeof b.consecutive === 'boolean' ? b.consecutive : null,
     repeatingValid: typeof b.repeatingValid === 'boolean' ? b.repeatingValid : null,
   };
-  const r = await callBot('PUT', `/guilds/${req.params.id}/games/${req.params.game}`, req.user.id, body);
+  const r = await runJob(req.params.id, req.user.id, req.params.game, 'save', payload);
   res.status(r.status).json(r.data);
 }));
 app.post('/api/guilds/:id/games/:game/enabled', authed, jsonOnly, adminOnly, knownGame, wrap(async (req, res) => {
   if (typeof req.body?.enabled !== 'boolean') return res.status(400).json({ error: 'enabled must be true or false.' });
-  const r = await callBot('POST', `/guilds/${req.params.id}/games/${req.params.game}/enabled`, req.user.id, { enabled: req.body.enabled });
+  const r = await runJob(req.params.id, req.user.id, req.params.game, 'toggle', { enabled: req.body.enabled });
   res.status(r.status).json(r.data);
 }));
 
