@@ -154,8 +154,8 @@ const WebJob = mongoose.models.WebJob || mongoose.model('WebJob', (() => {
   const s = new Schema({
     guildId: { type: String, required: true },
     userId: { type: String, required: true }, // the logged-in website user; the bot re-checks they are an Administrator
-    game: { type: String, enum: ['countryguess', 'wordstory', 'wordchain'], required: true },
-    action: { type: String, enum: ['save', 'toggle'], required: true },
+    game: { type: String, enum: ['countryguess', 'wordstory', 'wordchain', 'trigger'], required: true },
+    action: { type: String, enum: ['save', 'toggle', 'delete'], required: true },
     payload: { type: Schema.Types.Mixed, default: {} },
     status: { type: String, enum: ['pending', 'running', 'done', 'error'], default: 'pending' },
     message: { type: String, default: '' },
@@ -170,6 +170,7 @@ const GuildInfo = mongoose.models.GuildInfo || mongoose.model('GuildInfo', new S
   guildId: { type: String, required: true, unique: true },
   name: { type: String, default: '' },
   channels: { type: [{ _id: false, id: String, name: String, parent: String }], default: [] },
+  roles: { type: [{ _id: false, id: String, name: String, color: String, editable: Boolean }], default: [] }, // home server only (for the trigger form)
   updatedAt: { type: Date, default: Date.now },
 }));
 
