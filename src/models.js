@@ -170,8 +170,18 @@ const GuildInfo = mongoose.models.GuildInfo || mongoose.model('GuildInfo', new S
   guildId: { type: String, required: true, unique: true },
   name: { type: String, default: '' },
   channels: { type: [{ _id: false, id: String, name: String, parent: String }], default: [] },
-  roles: { type: [{ _id: false, id: String, name: String, color: String, editable: Boolean }], default: [] }, // home server only (for the trigger form)
+  roles: { type: [{ _id: false, id: String, name: String, color: String, editable: Boolean }], default: [] }, // for the website's trigger form
   updatedAt: { type: Date, default: Date.now },
 }));
 
-module.exports = { WebJob, GuildInfo, BlockedGuild, Feed, Used, QuoteConfig, Quote, BumpConfig, LogConfig, AfkConfig, AfkStatus, CountryGuessConfig, WordStoryConfig, WordChainConfig, TriggerConfig };
+// Beta system: which commands are beta (!config) and which servers have beta access (!betaaccess).
+const FeatureFlag = mongoose.models.FeatureFlag || mongoose.model('FeatureFlag', new Schema({
+  name: { type: String, required: true, unique: true },
+  stage: { type: String, enum: ['beta', 'public'], required: true },
+}));
+const BetaGuild = mongoose.models.BetaGuild || mongoose.model('BetaGuild', new Schema({
+  guildId: { type: String, required: true, unique: true },
+  addedAt: { type: Date, default: Date.now },
+}));
+
+module.exports = { FeatureFlag, BetaGuild, WebJob, GuildInfo, BlockedGuild, Feed, Used, QuoteConfig, Quote, BumpConfig, LogConfig, AfkConfig, AfkStatus, CountryGuessConfig, WordStoryConfig, WordChainConfig, TriggerConfig };

@@ -10,8 +10,8 @@ const passport = require('passport');
 const { Strategy } = require('passport-discord');
 const mongoose = require('mongoose');
 const path = require('path');
-const { Feed, CountryGuessConfig, WordStoryConfig, WordChainConfig, TriggerConfig, WebJob, GuildInfo } = require('./models');
-const { SERVER_ID, OWNER_ID } = require('./botconfig'); // from bot.json
+const { Feed, CountryGuessConfig, WordStoryConfig, WordChainConfig, TriggerConfig, FeatureFlag, BetaGuild, WebJob, GuildInfo } = require('./models');
+const { SERVER_ID, DEFAULT_BETA } = require('./botconfig'); // from bot.json
 
 // The OAuth2 redirect must match, character for character, one of the Redirects in
 // Discord Developer Portal > OAuth2. Normalise whatever is in CALLBACK_URL so common slips still work:
@@ -105,10 +105,19 @@ app.get('/api/invite', (_req, res) => res.json({
 app.get('/api/guilds', authed, wrap(async (req, res) => {
   const list = req.user.guilds
     .filter((g) => g.owner || (BigInt(g.permissions) & (MANAGE_GUILD | ADMIN)))
-    .map((g) => ({ id: g.id, name: g.name, admin: isAdminOf(g), botIn: null }));
+    .map((g) => ({ id: g.id, name: g.name, admin: isAdminOf(g), botIn: null, beta: false, features: {} }));
   if (list.length) {
-    const here = new Set((await GuildInfo.find({ guildId: { $in: list.map((g) => g.id) } }, { guildId: 1 }).lean()).map((x) => x.guildId));
-    list.forEach((g) => { g.botIn = here.has(g.id); });
+    const ids = list.map((g) => g.id);
+    const [here, acc] = await Promise.all([
+      GuildInfo.find({ guildId: { $in: ids } }, { guildId: 1 }).lean(),
+      loadAccess(ids), // beta is looked up on every load, so changes apply on the next visit
+    ]);
+    const inSet = new Set(here.map((x) => x.guildId));
+    list.forEach((g) => {
+      g.botIn = inSet.has(g.id);
+      g.beta = acc.hasBeta(g.id);
+      g.features = { trigger: { on: acc.can('trigger', g.id), stage: acc.stage('trigger') } };
+    });
   }
   res.json(list);
 }));
@@ -157,32 +166,39 @@ app.post('/api/guilds/:id/games/:game/enabled', authed, jsonOnly, adminOnly, kno
   res.status(r.status).json(r.data);
 }));
 
-// ---- beta page (owner only): everything on the main page, plus custom triggers ----
-// The page lives in /private (not /public) so the static handler can never serve it to anyone else.
-const ownerOnly = (req, res, next) => (req.user.id === OWNER_ID ? next() : res.status(403).json({ error: 'Beta access only.' }));
-app.get('/beta.html', (req, res) => (req.isAuthenticated() && req.user.id === OWNER_ID
-  ? res.sendFile(path.join(__dirname, '../private/beta.html'))
-  : res.redirect('/')));
+// ---- beta access: which commands are beta, and which servers have beta access (set with !config and !betaaccess) ----
+// Checked fresh on every request, so a server that gets (or loses) beta sees it on its next page load.
+async function loadAccess(guildIds) {
+  const [flags, betas] = await Promise.all([FeatureFlag.find().lean(), BetaGuild.find({ guildId: { $in: guildIds } }, { guildId: 1 }).lean()]);
+  const beta = new Set(betas.map((b) => b.guildId));
+  const stage = (name) => flags.find((f) => f.name === name)?.stage ?? (DEFAULT_BETA.has(name) ? 'beta' : 'public');
+  const hasBeta = (id) => id === SERVER_ID || beta.has(id);
+  return { stage, hasBeta, can: (name, id) => stage(name) === 'public' || hasBeta(id) };
+}
+const triggerGate = wrap(async (req, res, next) => {
+  const acc = await loadAccess([req.params.id]);
+  return acc.can('trigger', req.params.id) ? next() : res.status(403).json({ error: 'Triggers are not available for this server yet.' });
+});
 
+// ---- triggers (beta): custom !commands, per server, Administrator only ----
 const TRIGGER_ACTIONS = [
   { value: 'role_add', label: 'Role add', needsRole: true }, { value: 'role_remove', label: 'Role remove', needsRole: true },
   { value: 'kick', label: 'Kick' }, { value: 'ban', label: 'Ban' }, { value: 'mute', label: 'Mute' },
 ];
-app.get('/api/beta/triggers', authed, ownerOnly, wrap(async (req, res) => {
-  const info = await GuildInfo.findOne({ guildId: SERVER_ID }).lean();
-  if (!info) return res.status(404).json({ error: 'The bot has not published your server yet. Is it online and in the server?' });
-  const rows = await TriggerConfig.find({ guildId: SERVER_ID }, { _id: 0, __v: 0 }).sort({ name: 1 }).lean();
+app.get('/api/guilds/:id/triggers', authed, adminOnly, triggerGate, wrap(async (req, res) => {
+  const guildId = req.params.id;
+  const info = await GuildInfo.findOne({ guildId }).lean();
+  if (!info) return res.status(404).json({ error: 'not_in_guild' });
+  const rows = await TriggerConfig.find({ guildId }, { _id: 0, __v: 0 }).sort({ name: 1 }).lean();
   res.json({
-    guild: { id: SERVER_ID, name: info.name },
+    guild: { id: guildId, name: info.name },
     roles: info.roles.map((r) => ({ id: r.id, name: r.name, color: r.color, editable: r.editable })),
-    actions: TRIGGER_ACTIONS,
-    max: 20,
-    triggers: rows,
+    actions: TRIGGER_ACTIONS, max: 20, triggers: rows,
   });
 }));
-app.put('/api/beta/triggers', authed, ownerOnly, jsonOnly, wrap(async (req, res) => {
-  if (Date.now() - (recent.get(`t:${req.user.id}`) ?? 0) < 2000) return res.status(429).json({ error: 'Slow down a little.' });
-  recent.set(`t:${req.user.id}`, Date.now());
+app.put('/api/guilds/:id/triggers', authed, jsonOnly, adminOnly, triggerGate, wrap(async (req, res) => {
+  if (Date.now() - (recent.get(`t:${req.user.id}:${req.params.id}`) ?? 0) < 2000) return res.status(429).json({ error: 'Slow down a little.' });
+  recent.set(`t:${req.user.id}:${req.params.id}`, Date.now());
   const b = req.body || {};
   const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
   const payload = {
@@ -194,12 +210,12 @@ app.put('/api/beta/triggers', authed, ownerOnly, jsonOnly, wrap(async (req, res)
     deletePrompt: typeof b.deletePrompt === 'boolean' ? b.deletePrompt : null,
     deletePromptAfter: Number.isInteger(b.deletePromptAfter) ? b.deletePromptAfter : null,
   };
-  const r = await runJob(SERVER_ID, req.user.id, 'trigger', 'save', payload);
+  const r = await runJob(req.params.id, req.user.id, 'trigger', 'save', payload);
   res.status(r.status).json(r.data);
 }));
-app.delete('/api/beta/triggers/:name', authed, ownerOnly, wrap(async (req, res) => {
+app.delete('/api/guilds/:id/triggers/:name', authed, adminOnly, triggerGate, wrap(async (req, res) => {
   if (!/^[a-zA-Z]{1,40}$/.test(req.params.name)) return res.status(400).json({ error: 'Bad trigger name.' });
-  const r = await runJob(SERVER_ID, req.user.id, 'trigger', 'delete', { name: req.params.name });
+  const r = await runJob(req.params.id, req.user.id, 'trigger', 'delete', { name: req.params.name });
   res.status(r.status).json(r.data);
 }));
 
