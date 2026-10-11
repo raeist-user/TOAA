@@ -21,18 +21,34 @@ a{color:#7aa2ff;text-decoration:none}.muted{color:#8b93a5}.small{font-size:.85re
 .on{background:#1d3b2a;color:#5ad17a}.off{background:#3b1d1d;color:#ff8080}
 .ok{color:#5ad17a}.err{color:#ff7b7b}
 h3{margin:1.4rem 0 .2rem}
+.notice{background:#2e2a17;color:#cdbf7a;border-bottom:1px solid #433c1d;text-align:center;padding:.45rem 1rem;font-size:.82rem}
+.loader{display:flex;flex-direction:column;align-items:center;gap:.8rem;padding:4rem 0;color:#8b93a5}
+.spin{width:34px;height:34px;border:3px solid #23262d;border-top-color:#4f6bff;border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.field{display:flex;flex-direction:column;gap:.2rem;min-width:9rem;flex:1}
+.field span{font-size:.8rem;color:#8b93a5}
+input[type=text],textarea{font:inherit;padding:.5rem .7rem;border-radius:6px;border:1px solid #333845;background:#1a1d24;color:inherit;width:100%;box-sizing:border-box}
+textarea{min-height:4.5rem;resize:vertical}
+.tag{font-family:monospace;color:#9db4ff}
 .brand{display:flex;align-items:center;gap:.55rem}.brand img{width:30px;height:30px;border-radius:8px;object-fit:cover}
 </style></head>
 <body>
 <header><span class="brand"><img src="/resource/bot.jpg" alt="" onerror="this.remove()"><b>server.bot</b></span><span id="who" class="muted"></span></header>
+<div class="notice">Heads up: this website runs on a free instance, so opening it can take a while. Sorry for the wait, it is due to lack of funding.</div>
 <main>
-  <p id="msg" class="muted">Loading…</p>
-  <p><a id="invite" href="#" target="_blank" rel="noopener"><button class="primary">Add bot to a server</button></a></p>
+  <div id="loading" class="loader"><div class="spin"></div><div>Opening…</div></div>
+  <p id="inviteWrap" hidden><a id="invite" href="#" target="_blank" rel="noopener"><button class="primary">Add bot to a server</button></a></p>
   <div id="login" hidden><a href="/auth/discord"><button class="primary">Login with Discord</button></a></div>
   <div id="app" hidden>
-    <select id="guild"></select>
+    <div class="row"><select id="guild"></select><span id="betaTag" class="badge" hidden>BETA ACCESS</span></div>
     <h3>Games</h3>
     <div id="games"></div>
+    <div id="trigSection" hidden>
+      <h3>Triggers <span id="trigTag" class="badge" hidden>BETA</span> <span class="muted small" id="trigServer"></span></h3>
+      <p class="muted small">Custom <code>!commands</code> for this server.</p>
+      <div id="trigList"></div>
+      <div class="card" id="trigForm"></div>
+    </div>
     <h3>Feeds</h3>
     <p class="muted small">Set feeds up in Discord with <code>/wotd</code>, <code>/dailyfact</code> and <code>/feeds</code>.</p>
     <div id="feeds"></div>
@@ -143,17 +159,127 @@ async function loadGames() {
   box.replaceChildren(...Object.keys(GAME_INFO).map((k) => renderGame(g.id, k, r.data.games[k], r.data.channels, r.data.limits.trigger)));
 }
 
-function loadGuild() { loadGames(); loadFeeds(); }
+
+// ---------------- triggers (owner only, home server) ----------------
+const secsToText = (ms) => (!ms ? '' : ms % 864e5 === 0 ? `${ms / 864e5}d` : ms % 36e5 === 0 ? `${ms / 36e5}h` : `${Math.round(ms / 6e4)}m`);
+let trig = null; // { roles, actions, max, triggers }
+let trigGuild = null; // the server the trigger section is showing
+
+function describe(t) {
+  const a = trig.actions.find((x) => x.value === t.action);
+  const role = trig.roles.find((r) => r.id === t.roleId);
+  const action = a ? `${a.label} on ${t.applyTo === 'author' ? 'author' : 'target'}${role ? ` · @${role.name}` : ''}${t.action === 'mute' ? ` · ${secsToText(t.durationMs)}` : ''}` : `Response only${role ? ` · @${role.name}` : ''}`;
+  const resp = t.respondType === 'message' ? `Message: ${(t.respond || '').slice(0, 80)}` : `Reaction ${t.respond || ''}`;
+  return `${action}  |  ${resp}`;
+}
+
+function renderTriggerForm(edit) {
+  const f = $('#trigForm'); f.replaceChildren();
+  const e = edit || {};
+  const field = (label, node) => el('label', { className: 'field' }, el('span', { textContent: label }), node);
+  const name = el('input', { type: 'text', placeholder: 'hire', maxLength: 33, value: e.name || '', disabled: false });
+  const action = el('select'); action.append(el('option', { value: '', textContent: 'None (response only)' }));
+  trig.actions.forEach((a) => action.append(el('option', { value: a.value, textContent: a.label }))); action.value = e.action || '';
+  const applyTo = el('select'); applyTo.append(el('option', { value: 'target', textContent: 'Target (first @mention)' }), el('option', { value: 'author', textContent: 'Author (who typed it)' })); applyTo.value = e.applyTo || 'target';
+  const role = el('select'); role.append(el('option', { value: '', textContent: 'No role' }));
+  trig.roles.forEach((r) => role.append(el('option', { value: r.id, textContent: `@${r.name}${r.editable ? '' : ' (bot cannot manage)'}` }))); role.value = e.roleId || '';
+  const duration = el('input', { type: 'text', placeholder: '10m, 2h, 1d', value: e.action === 'mute' ? secsToText(e.durationMs) : '' });
+  const rtype = el('select'); rtype.append(el('option', { value: 'reaction', textContent: 'Reaction (emoji)' }), el('option', { value: 'message', textContent: 'Message' })); rtype.value = e.respondType || 'reaction';
+  const respond = el('textarea', { placeholder: 'Emoji, or text with ${authormention} ${authername} ${targetmention} ${targetname} ${rolename} ${rolemention}', value: e.respond || '' });
+  const inReply = el('input', { type: 'checkbox', checked: e.inReply !== false });
+  const delAfter = el('input', { type: 'number', min: 0, max: 60, value: e.deleteAfter ?? 0, style: 'width:5rem' });
+  const delPrompt = el('input', { type: 'checkbox', checked: !!e.deletePrompt });
+  const delPromptAfter = el('input', { type: 'number', min: 0, max: 60, value: e.deletePromptAfter ?? 0, style: 'width:5rem' });
+
+  const rowRole = field('Role (for Role add / remove, and ${rolename})', role);
+  const rowDur = field('Mute duration (1m - 28d)', duration);
+  const rowReply = el('div', { className: 'row' }, el('label', {}, inReply, 'Reply to the prompt'));
+  const rowPromptAfter = el('div', { className: 'row' }, el('label', {}, 'Seconds before the prompt is deleted (0 = right away)', delPromptAfter));
+  const sync = () => { rowDur.hidden = action.value !== 'mute'; rowReply.hidden = rtype.value !== 'message'; rowPromptAfter.hidden = !delPrompt.checked; };
+  [action, rtype, delPrompt].forEach((n) => { n.onchange = sync; });
+
+  const result = el('div', { className: 'small' });
+  const show = (ok, text) => { result.className = 'small ' + (ok ? 'ok' : 'err'); result.style.whiteSpace = 'pre-line'; result.textContent = text; };
+  const save = el('button', { className: 'primary', textContent: edit ? 'Update trigger' : 'Create trigger' });
+  save.onclick = async () => {
+    const body = {
+      command: name.value.trim(), action: action.value || null, applyTo: applyTo.value, roleId: role.value || null,
+      duration: action.value === 'mute' ? duration.value.trim() || null : null,
+      respondType: rtype.value, respond: respond.value.trim(),
+      inReply: inReply.checked, deleteAfter: parseInt(delAfter.value, 10) || 0,
+      deletePrompt: delPrompt.checked, deletePromptAfter: parseInt(delPromptAfter.value, 10) || 0,
+    };
+    save.disabled = true; show(true, 'Saving…');
+    const r = await call('PUT', `/api/guilds/${trigGuild}/triggers`, body);
+    save.disabled = false;
+    if (r.ok) { await loadTriggers(trigGuild, r.data.message); } else show(false, r.data.error || `Failed (${r.status}).`);
+  };
+  const clear = el('button', { textContent: 'Clear', onclick: () => renderTriggerForm(null) });
+
+  f.append(
+    el('b', { textContent: edit ? `Editing !${edit.name}` : 'New trigger' }),
+    el('div', { className: 'row' }, field('Command name (letters only)', name), field('Action', action), field('Apply to', applyTo)),
+    el('div', { className: 'row' }, rowRole, rowDur),
+    el('div', { className: 'row' }, field('Response type', rtype)),
+    el('div', { className: 'row' }, field('Response', respond)),
+    rowReply,
+    el('div', { className: 'row' }, el('label', {}, 'Seconds before my response is removed (0 = keep)', delAfter)),
+    el('div', { className: 'row' }, el('label', {}, delPrompt, 'Delete the message that ran the command')),
+    rowPromptAfter,
+    el('div', { className: 'row' }, save, clear),
+    result,
+  );
+  sync();
+  return show;
+}
+
+async function loadTriggers(guildId, notice) {
+  trigGuild = guildId;
+  const list = $('#trigList');
+  const r = await call('GET', `/api/guilds/${guildId}/triggers`);
+  if (!r.ok) { list.replaceChildren(el('p', { className: 'err small', textContent: r.data.error === 'not_in_guild' ? 'The bot is not in this server yet.' : (r.data.error || 'Could not load triggers.') })); $('#trigForm').replaceChildren(); return; }
+  trig = r.data;
+  $('#trigServer').textContent = `· ${trig.guild.name} (${trig.triggers.length}/${trig.max})`;
+  list.replaceChildren(...(trig.triggers.length ? trig.triggers.map((t) => {
+    const del = el('button', { textContent: 'Delete' });
+    del.onclick = async () => {
+      if (!confirm(`Delete !${t.name}?`)) return;
+      del.disabled = true;
+      const d = await call('DELETE', `/api/guilds/${guildId}/triggers/${encodeURIComponent(t.name)}`);
+      if (d.ok) loadTriggers(guildId, d.data.message); else { del.disabled = false; alert(d.data.error || 'Failed.'); }
+    };
+    return el('div', { className: 'card' },
+      el('div', { className: 'top' }, el('b', { className: 'tag', textContent: `!${t.name}` }), el('span', { className: 'row' }, el('button', { textContent: 'Edit', onclick: () => { renderTriggerForm(t); $('#trigForm').scrollIntoView({ behavior: 'smooth' }); } }), del)),
+      el('div', { className: 'muted small', textContent: describe(t) }));
+  }) : [el('p', { className: 'muted small', textContent: 'No triggers yet.' })]));
+  const show = renderTriggerForm(null);
+  if (notice) show(true, notice);
+}
+
+async function loadGuild() {
+  const g = guilds.find((x) => x.id === $('#guild').value);
+  const trigOn = !!(g?.admin && g?.features?.trigger?.on);
+  $('#betaTag').hidden = !g?.beta; // this server has beta access
+  $('#trigSection').hidden = !trigOn;
+  $('#trigTag').hidden = g?.features?.trigger?.stage !== 'beta';
+  const wait = () => el('p', { className: 'muted small', textContent: 'Loading…' });
+  $('#games').replaceChildren(wait()); $('#feeds').replaceChildren(wait()); if (trigOn) $('#trigList').replaceChildren(wait());
+  await Promise.all([loadGames(), loadFeeds(), trigOn ? loadTriggers(g.id) : null]);
+}
 
 (async () => {
+  let ready = false;
   try { inviteUrl = (await api('/api/invite')).url; $('#invite').href = inviteUrl; } catch {}
   try {
     guilds = await api('/api/guilds');
     $('#who').textContent = (await api('/api/me')).username;
-    $('#msg').hidden = true; $('#app').hidden = false;
     guilds.forEach((g) => $('#guild').append(el('option', { value: g.id, textContent: g.name })));
     $('#guild').onchange = loadGuild;
-    if (guilds.length) loadGuild(); else { $('#games').textContent = 'No servers you manage.'; $('#feeds').textContent = ''; }
-  } catch { $('#msg').hidden = true; $('#login').hidden = false; }
+    ready = true;
+  } catch { /* not logged in */ }
+  if (!ready) { $('#loading').hidden = true; $('#login').hidden = false; $('#inviteWrap').hidden = false; return; }
+  // Load everything first, then show the page in one go (no half-loaded flicker).
+  if (guilds.length) await loadGuild(); else { $('#games').textContent = 'No servers you manage.'; $('#feeds').textContent = ''; }
+  $('#loading').hidden = true; $('#app').hidden = false; $('#inviteWrap').hidden = false;
 })();
 </script></body></html>
