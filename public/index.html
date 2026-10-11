@@ -5,6 +5,7 @@
 <link rel="icon" href="/resource/bot.jpg">
 <style>
 :root{color-scheme:dark}
+[hidden]{display:none!important}
 body{margin:0;font-family:system-ui,sans-serif;background:#0f1115;color:#e6e6e6}
 header{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;border-bottom:1px solid #23262d}
 main{max-width:720px;margin:0 auto;padding:1rem}
@@ -48,6 +49,11 @@ textarea{min-height:4.5rem;resize:vertical}
       <p class="muted small">Custom <code>!commands</code> for this server.</p>
       <div id="trigList"></div>
       <div class="card" id="trigForm"></div>
+    </div>
+    <div id="emojiSection" hidden>
+      <h3>!emoji access <span id="emojiTag" class="badge" hidden>BETA</span></h3>
+      <p class="muted small">Who can use <code>!emoji</code>. Same as <code>/emoji</code> in Discord.</p>
+      <div class="card" id="emojiForm"></div>
     </div>
     <h3>Feeds</h3>
     <p class="muted small">Set feeds up in Discord with <code>/wotd</code>, <code>/dailyfact</code> and <code>/feeds</code>.</p>
@@ -256,15 +262,53 @@ async function loadTriggers(guildId, notice) {
   if (notice) show(true, notice);
 }
 
+// ---------------- !emoji access (beta) ----------------
+async function loadEmoji(guildId) {
+  const f = $('#emojiForm'); f.replaceChildren(el('span', { className: 'muted small', textContent: 'Loading…' }));
+  const r = await call('GET', `/api/guilds/${guildId}/emoji`);
+  if (!r.ok) { f.replaceChildren(el('p', { className: 'err small', textContent: r.data.error === 'not_in_guild' ? 'The bot is not in this server yet.' : (r.data.error || 'Could not load.') })); return; }
+  const { roles, config } = r.data;
+  f.replaceChildren();
+  const defPerm = el('input', { type: 'checkbox', checked: config.defaultPerm });
+  const users = el('textarea', { placeholder: 'User IDs, one per line or separated by commas', value: config.userIds.join('\n') });
+  const picked = new Set(config.roleIds);
+  const roleBox = el('div', { className: 'row' });
+  if (!roles.length) roleBox.append(el('span', { className: 'muted small', textContent: 'No roles found.' }));
+  roles.forEach((role) => {
+    const c = el('input', { type: 'checkbox', checked: picked.has(role.id) });
+    c.onchange = () => { if (c.checked) picked.add(role.id); else picked.delete(role.id); };
+    roleBox.append(el('label', { className: 'badge', style: role.color && role.color !== '#000000' ? `color:${role.color}` : '' }, c, `@${role.name}`));
+  });
+  const result = el('div', { className: 'small' });
+  const show = (ok, text) => { result.className = 'small ' + (ok ? 'ok' : 'err'); result.textContent = text; };
+  const save = el('button', { className: 'primary', textContent: 'Save' });
+  save.onclick = async () => {
+    const userIds = [...new Set(users.value.match(/\d{15,25}/g) || [])];
+    save.disabled = true; show(true, 'Saving…');
+    const s = await call('PUT', `/api/guilds/${guildId}/emoji`, { userIds, roleIds: [...picked], defaultPerm: defPerm.checked });
+    save.disabled = false;
+    if (s.ok) show(true, 'Saved.'); else show(false, s.data.error || `Failed (${s.status}).`);
+  };
+  f.append(
+    el('div', { className: 'row' }, el('label', {}, defPerm, 'Default permission: members with Manage Expressions can use !emoji')),
+    el('div', { className: 'row' }, el('label', { className: 'field' }, el('span', { textContent: 'Users who can use !emoji (IDs)' }), users)),
+    el('div', { className: 'field' }, el('span', { textContent: 'Roles who can use !emoji' }), roleBox),
+    el('div', { className: 'row' }, save), result,
+  );
+}
+
 async function loadGuild() {
   const g = guilds.find((x) => x.id === $('#guild').value);
   const trigOn = !!(g?.admin && g?.features?.trigger?.on);
   $('#betaTag').hidden = !g?.beta; // this server has beta access
+  const emojiOn = !!(g?.admin && g?.features?.emoji?.on);
+  $('#emojiSection').hidden = !emojiOn;
+  $('#emojiTag').hidden = g?.features?.emoji?.stage !== 'beta';
   $('#trigSection').hidden = !trigOn;
   $('#trigTag').hidden = g?.features?.trigger?.stage !== 'beta';
   const wait = () => el('p', { className: 'muted small', textContent: 'Loading…' });
   $('#games').replaceChildren(wait()); $('#feeds').replaceChildren(wait()); if (trigOn) $('#trigList').replaceChildren(wait());
-  await Promise.all([loadGames(), loadFeeds(), trigOn ? loadTriggers(g.id) : null]);
+  await Promise.all([loadGames(), loadFeeds(), trigOn ? loadTriggers(g.id) : null, emojiOn ? loadEmoji(g.id) : null]);
 }
 
 (async () => {
@@ -279,7 +323,9 @@ async function loadGuild() {
   } catch { /* not logged in */ }
   if (!ready) { $('#loading').hidden = true; $('#login').hidden = false; $('#inviteWrap').hidden = false; return; }
   // Load everything first, then show the page in one go (no half-loaded flicker).
-  if (guilds.length) await loadGuild(); else { $('#games').textContent = 'No servers you manage.'; $('#feeds').textContent = ''; }
-  $('#loading').hidden = true; $('#app').hidden = false; $('#inviteWrap').hidden = false;
+  try {
+    if (guilds.length) await loadGuild(); else { $('#games').textContent = 'No servers you manage.'; $('#feeds').textContent = ''; }
+  } catch (e) { console.error(e); }
+  finally { $('#loading').hidden = true; $('#app').hidden = false; $('#inviteWrap').hidden = false; } // the spinner always goes away
 })();
 </script></body></html>
