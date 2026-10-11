@@ -4,67 +4,97 @@
 <title>server.bot</title>
 <link rel="icon" href="/resource/bot.jpg">
 <style>
-:root{color-scheme:dark}
+:root{color-scheme:dark;--bg:#0f1115;--panel:#161920;--line:#23262d;--line2:#333845;--field:#1a1d24;--txt:#e6e6e6;--mute:#8b93a5;--pri:#4f6bff;--ok:#5ad17a;--err:#ff7b7b}
 [hidden]{display:none!important}
-body{margin:0;font-family:system-ui,sans-serif;background:#0f1115;color:#e6e6e6}
-header{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;border-bottom:1px solid #23262d}
-main{max-width:720px;margin:0 auto;padding:1rem}
-button,select,input[type=number]{font:inherit;padding:.5rem .9rem;border-radius:6px;border:1px solid #333845;background:#1a1d24;color:inherit}
-button{cursor:pointer}button:disabled{opacity:.5;cursor:default}
-select{max-width:100%}
-.primary{background:#4f6bff;border-color:#4f6bff;color:#fff}
-a{color:#7aa2ff;text-decoration:none}.muted{color:#8b93a5}.small{font-size:.85rem}
-.card{border:1px solid #23262d;border-radius:8px;padding:.75rem 1rem;margin:.6rem 0}
-.row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin:.55rem 0}
-.row label{display:flex;gap:.4rem;align-items:center}
-.top{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
-.badge{font-size:.75rem;padding:.1rem .5rem;border-radius:99px;background:#23262d}
-.on{background:#1d3b2a;color:#5ad17a}.off{background:#3b1d1d;color:#ff8080}
-.ok{color:#5ad17a}.err{color:#ff7b7b}
-h3{margin:1.4rem 0 .2rem}
-.notice{background:#2e2a17;color:#cdbf7a;border-bottom:1px solid #433c1d;text-align:center;padding:.45rem 1rem;font-size:.82rem}
-.loader{display:flex;flex-direction:column;align-items:center;gap:.8rem;padding:4rem 0;color:#8b93a5}
-.spin{width:34px;height:34px;border:3px solid #23262d;border-top-color:#4f6bff;border-radius:50%;animation:sp .8s linear infinite}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--txt)}
+header{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.5rem 1rem;border-bottom:1px solid var(--line)}
+main{max-width:820px;margin:0 auto;padding:.8rem 1rem 4rem}
+a{color:#7aa2ff;text-decoration:none}.muted{color:var(--mute)}.small{font-size:.8rem}.grow{flex:1;min-width:0}
+button,select,input,textarea{font:inherit;color:inherit}
+button,select,input[type=number],input[type=text],textarea{padding:.38rem .65rem;border-radius:6px;border:1px solid var(--line2);background:var(--field)}
+input[type=text],textarea,select{width:100%}
+textarea{resize:vertical;min-height:0;display:block}
+button{cursor:pointer;white-space:nowrap}button:hover:not(:disabled){border-color:#4b5263}button:disabled{opacity:.45;cursor:default}
+.primary{background:var(--pri);border-color:var(--pri);color:#fff}
+.ghost{background:none;border-color:transparent;color:var(--mute);padding:.25rem .5rem}.ghost:hover:not(:disabled){color:var(--txt)}
+.danger:hover:not(:disabled){color:var(--err)}
+.notice{background:#2e2a17;color:#cdbf7a;border-bottom:1px solid #433c1d;text-align:center;padding:.35rem 2rem;font-size:.78rem;position:relative}
+.notice button{position:absolute;right:.4rem;top:.1rem;background:none;border:0;color:inherit;font-size:1rem;padding:.1rem .4rem}
+.brand{display:flex;align-items:center;gap:.5rem}.brand img{width:26px;height:26px;border-radius:7px;object-fit:cover}
+.badge{font-size:.68rem;padding:.08rem .45rem;border-radius:99px;background:var(--line);color:var(--mute);font-weight:600;letter-spacing:.02em}
+.badge.on{background:#1d3b2a;color:var(--ok)}.badge.off{background:#3b1d1d;color:#ff8080}.badge.beta{background:#2c2550;color:#a99bff}
+.loader{display:flex;flex-direction:column;align-items:center;gap:.8rem;padding:4rem 0;color:var(--mute)}
+.spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--pri);border-radius:50%;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
-.field{display:flex;flex-direction:column;gap:.2rem;min-width:9rem;flex:1}
-.field span{font-size:.8rem;color:#8b93a5}
-input[type=text],textarea{font:inherit;padding:.5rem .7rem;border-radius:6px;border:1px solid #333845;background:#1a1d24;color:inherit;width:100%;box-sizing:border-box}
-textarea{min-height:4.5rem;resize:vertical}
+.bar{display:flex;gap:.6rem;align-items:center;margin-bottom:.6rem}.bar select{max-width:320px}
+.tabs{display:flex;gap:.2rem;border-bottom:1px solid var(--line);margin-bottom:.8rem;overflow-x:auto}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:.5rem .8rem;color:var(--mute);display:flex;gap:.4rem;align-items:center}
+.tabs button.sel{color:var(--txt);border-bottom-color:var(--pri)}
+.card{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:.6rem .8rem;margin:0 0 .6rem}
+.head{display:flex;align-items:center;gap:.5rem}.head b{font-size:.95rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.5rem .7rem;margin:.5rem 0}
+.field{display:flex;flex-direction:column;gap:.15rem;min-width:0}.field>span{font-size:.74rem;color:var(--mute)}
+.checks{display:flex;gap:.3rem 1.1rem;flex-wrap:wrap;margin:.45rem 0}
+.check{display:flex;gap:.4rem;align-items:center;cursor:pointer}
+.foot{display:flex;align-items:center;gap:.6rem;margin-top:.5rem;flex-wrap:wrap}
+.switch{position:relative;width:34px;height:20px;flex:none;cursor:pointer}
+.switch input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.switch span{position:absolute;inset:0;background:#2a2e38;border-radius:99px;transition:.15s}
+.switch span::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#aab;transition:.15s}
+.switch input:checked+span{background:var(--pri)}.switch input:checked+span::after{left:17px;background:#fff}
+.switch input:disabled+span{opacity:.5}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:var(--field);padding:.38rem .7rem}.seg button.sel{background:var(--pri);color:#fff}
+.item{display:flex;align-items:center;gap:.6rem;padding:.45rem .8rem;border:1px solid var(--line);background:var(--panel);border-radius:8px;margin-bottom:.4rem}
 .tag{font-family:monospace;color:#9db4ff}
-.brand{display:flex;align-items:center;gap:.55rem}.brand img{width:30px;height:30px;border-radius:8px;object-fit:cover}
+.prefix{display:flex;align-items:center;border:1px solid var(--line2);border-radius:6px;background:var(--field)}
+.prefix>span{padding:0 .1rem 0 .65rem;color:var(--mute);font-family:monospace}
+.prefix input{border:0;background:none;padding-left:.2rem}
+.chips{display:flex;flex-wrap:wrap;gap:.35rem;margin:.3rem 0}
+.chip{display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .55rem;border-radius:99px;background:var(--field);border:1px solid var(--line2);font-size:.82rem}
+.chip button{border:0;background:none;padding:0 .1rem;color:var(--mute);line-height:1}
+button.chip{cursor:pointer}button.chip.sel{background:#232c57;border-color:var(--pri)}
+.dot{width:9px;height:9px;border-radius:50%;background:#99aab5;flex:none}
+.vars{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem}.vars button{font:.72rem monospace;padding:.1rem .4rem;color:#9db4ff}
+details.card>summary{cursor:pointer;font-weight:600;list-style:none}details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::before{content:"+ ";color:var(--mute)}details.card[open]>summary::before{content:"– "}
+details.more{margin-top:.4rem}details.more>summary{cursor:pointer;color:var(--mute);font-size:.82rem}
+.toast{position:fixed;left:50%;bottom:1rem;transform:translateX(-50%);padding:.5rem .9rem;border-radius:8px;background:#1d2a22;border:1px solid #2f5a40;color:var(--ok);max-width:90vw;z-index:9;box-shadow:0 6px 24px #0008;white-space:pre-line}
+.toast.err{background:#2c1d1d;border-color:#5a2f2f;color:var(--err)}
+@media(max-width:520px){main{padding:.6rem .6rem 4rem}.bar select{max-width:none}}
 </style></head>
 <body>
-<header><span class="brand"><img src="/resource/bot.jpg" alt="" onerror="this.remove()"><b>server.bot</b></span><span id="who" class="muted"></span></header>
-<div class="notice">Heads up: this website runs on a free instance, so opening it can take a while. Sorry for the wait, it is due to lack of funding.</div>
+<header>
+  <span class="brand"><img src="/resource/bot.jpg" alt="" onerror="this.remove()"><b>server.bot</b></span>
+  <span class="small"><span id="who" class="muted"></span> <a id="logout" href="/auth/logout" hidden>· Logout</a></span>
+</header>
+<div class="notice" id="notice">Heads up: this website runs on a free instance, so opening it can take a while. Sorry for the wait, it is due to lack of funding.<button type="button" aria-label="Dismiss" onclick="this.parentNode.hidden=true">×</button></div>
 <main>
   <div id="loading" class="loader"><div class="spin"></div><div>Opening…</div></div>
   <p id="inviteWrap" hidden><a id="invite" href="#" target="_blank" rel="noopener"><button class="primary">Add bot to a server</button></a></p>
   <div id="login" hidden><a href="/auth/discord"><button class="primary">Login with Discord</button></a></div>
   <div id="app" hidden>
-    <div class="row"><select id="guild"></select><span id="betaTag" class="badge" hidden>BETA ACCESS</span></div>
-    <h3>Games</h3>
-    <div id="games"></div>
-    <div id="trigSection" hidden>
-      <h3>Triggers <span id="trigTag" class="badge" hidden>BETA</span> <span class="muted small" id="trigServer"></span></h3>
-      <p class="muted small">Custom <code>!commands</code> for this server.</p>
+    <div class="bar"><select id="guild"></select><span id="betaTag" class="badge beta" hidden>BETA ACCESS</span></div>
+    <div id="banner" class="card" hidden></div>
+    <div class="tabs" id="tabs"></div>
+    <section id="pane-games" hidden></section>
+    <section id="pane-triggers" hidden>
+      <p class="muted small" style="margin-top:0">Your own <code>!commands</code> for this server. Same as <code>/trigger</code> in Discord.</p>
       <div id="trigList"></div>
-      <div class="card" id="trigForm"></div>
-    </div>
-    <div id="emojiSection" hidden>
-      <h3>!emoji access <span id="emojiTag" class="badge" hidden>BETA</span></h3>
-      <p class="muted small">Who can use <code>!emoji</code>. Same as <code>/emoji</code> in Discord.</p>
-      <div class="card" id="emojiForm"></div>
-    </div>
-    <h3>Feeds</h3>
-    <p class="muted small">Set feeds up in Discord with <code>/wotd</code>, <code>/dailyfact</code> and <code>/feeds</code>.</p>
-    <div id="feeds"></div>
-    <p><a href="/auth/logout">Logout</a></p>
+      <details class="card" id="trigNew"><summary id="trigTitle">New trigger</summary><div id="trigForm"></div></details>
+    </section>
+    <section id="pane-emoji" hidden></section>
+    <section id="pane-feeds" hidden>
+      <p class="muted small" style="margin-top:0">Set feeds up in Discord with <code>/wotd</code>, <code>/dailyfact</code> and <code>/feeds</code>.</p>
+      <div id="feeds"></div>
+    </section>
   </div>
 </main>
+<div id="toast" class="toast" hidden></div>
 <script>
 const $ = (s) => document.querySelector(s);
-const NAMES = { wotd: 'Word of the Day', dailyfact: 'Daily Fact' };
-const el = (t, p = {}, ...k) => { const e = Object.assign(document.createElement(t), p); k.forEach((x) => e.append(x)); return e; };
+const el = (t, p = {}, ...k) => { const e = document.createElement(t); const { dataset, ...rest } = p; Object.assign(e, rest); if (dataset) Object.assign(e.dataset, dataset); k.flat().forEach((x) => { if (x != null && x !== false) e.append(x); }); return e; };
 // Always resolves { ok, status, data } so callers can show the server's message.
 async function call(method, url, body) {
   try {
@@ -73,19 +103,38 @@ async function call(method, url, body) {
   } catch { return { ok: false, status: 0, data: { error: 'Network error. Check your connection.' } }; }
 }
 async function api(u) { const r = await call('GET', u); if (!r.ok) throw new Error(r.status); return r.data; }
-const hours = (ms) => (ms % 864e5 === 0 ? `${ms / 864e5}d` : ms % 36e5 === 0 ? `${ms / 36e5}h` : `${Math.round(ms / 6e4)}m`);
+const short = (ms) => (!ms ? '' : ms % 864e5 === 0 ? `${ms / 864e5}d` : ms % 36e5 === 0 ? `${ms / 36e5}h` : `${Math.round(ms / 6e4)}m`);
+let toastTimer;
+function toast(ok, text) { const t = $('#toast'); t.className = `toast${ok ? '' : ' err'}`; t.textContent = text; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, ok ? 3000 : 7000); }
+
+// ---- small building blocks ----
+const field = (label, node) => el('label', { className: 'field' }, el('span', { textContent: label }), node);
+const check = (label, on) => { const input = el('input', { type: 'checkbox', checked: !!on }); return { input, node: el('label', { className: 'check' }, input, label) }; };
+const sw = (on, onchange) => { const input = el('input', { type: 'checkbox', checked: !!on }); input.onchange = () => onchange(input); return { input, node: el('label', { className: 'switch' }, input, el('span')) }; };
+function seg(options, value, onchange) {
+  let cur = value; const box = el('div', { className: 'seg' });
+  const btns = options.map(([v, label]) => { const b = el('button', { type: 'button', textContent: label }); b.onclick = () => { cur = v; paint(); if (onchange) onchange(v); }; return [v, b]; });
+  const paint = () => btns.forEach(([v, b]) => b.classList.toggle('sel', v === cur));
+  box.append(...btns.map((x) => x[1])); paint();
+  return { node: box, get: () => cur };
+}
+const dirtyOnEdit = (root, save) => { const f = () => { save.disabled = false; }; root.addEventListener('input', f); root.addEventListener('change', f); return f; };
+
 let inviteUrl = '#';
 let guilds = [];
+const curGuild = () => guilds.find((x) => x.id === $('#guild').value);
 
 // ---------------- feeds (read-only) ----------------
-async function loadFeeds() {
-  const box = $('#feeds'); box.replaceChildren();
-  const r = await call('GET', `/api/guilds/${$('#guild').value}/feeds`);
-  if (!r.ok) return box.append(el('p', { className: 'muted', textContent: 'Could not load feeds.' }));
-  if (!r.data.length) return box.append(el('p', { className: 'muted', textContent: 'No feeds set up in this server yet.' }));
-  r.data.forEach((f) => box.append(el('div', { className: 'card' },
-    el('b', { textContent: NAMES[f.type] + (f.enabled ? '' : ' (disabled)') }),
-    el('div', { className: 'muted', textContent: `Channel ${f.channelId} · every ${hours(f.intervalMs)} · ${f.emoji} · next ${new Date(f.nextRunAt).toLocaleString()}` }))));
+const FEED_NAMES = { wotd: 'Word of the Day', dailyfact: 'Daily Fact' };
+async function loadFeeds(id) {
+  const box = $('#feeds'); box.replaceChildren(el('p', { className: 'muted small', textContent: 'Loading…' }));
+  const r = await call('GET', `/api/guilds/${id}/feeds`);
+  if (curGuild()?.id !== id) return;
+  if (!r.ok) return box.replaceChildren(el('p', { className: 'muted', textContent: 'Could not load feeds.' }));
+  if (!r.data.length) return box.replaceChildren(el('p', { className: 'muted', textContent: 'No feeds set up in this server yet.' }));
+  box.replaceChildren(...r.data.map((f) => el('div', { className: 'item' },
+    el('b', { textContent: FEED_NAMES[f.type] || f.type }), !f.enabled && el('span', { className: 'badge off', textContent: 'Off' }),
+    el('span', { className: 'muted small grow', textContent: `${f.channelId} · every ${short(f.intervalMs)} · ${f.emoji} · next ${new Date(f.nextRunAt).toLocaleString()}` }))));
 }
 
 // ---------------- games ----------------
@@ -98,217 +147,245 @@ const GAME_INFO = {
 function renderGame(guildId, key, cfg, channels, limits) {
   const info = GAME_INFO[key];
   const card = el('div', { className: 'card' });
-  const badge = el('span', { className: 'badge ' + (cfg ? (cfg.enabled ? 'on' : 'off') : ''), textContent: cfg ? (cfg.enabled ? 'On' : 'Off') : 'Not set up' });
-  const top = el('div', { className: 'top' }, el('b', { textContent: info.title }), badge);
-  const result = el('div', { className: 'small' });
-  const show = (ok, text) => { result.className = 'small ' + (ok ? 'ok' : 'err'); result.textContent = text; };
-
+  const head = el('div', { className: 'head' }, el('b', { textContent: info.title }),
+    el('span', { className: `badge ${cfg ? (cfg.enabled ? 'on' : 'off') : ''}`, textContent: cfg ? (cfg.enabled ? 'On' : 'Off') : 'Not set up' }), el('span', { className: 'grow' }));
+  if (cfg) {
+    const t = sw(cfg.enabled, async (input) => {
+      input.disabled = true;
+      const r = await call('POST', `/api/guilds/${guildId}/games/${key}/enabled`, { enabled: input.checked });
+      if (r.ok) { toast(true, r.data.message || (input.checked ? 'Enabled.' : 'Disabled.')); loadGames(); }
+      else { input.checked = !input.checked; input.disabled = false; toast(false, r.data.error || `Failed (${r.status}).`); }
+    });
+    t.node.title = cfg.enabled ? 'Turn off' : 'Turn on';
+    head.append(t.node);
+  }
+  const form = el('div');
   const select = el('select');
-  if (!cfg) select.append(el('option', { value: '', textContent: 'Create a channel for me (Activity category)' }));
+  if (!cfg) select.append(el('option', { value: '', textContent: 'Create one for me (Activity category)' }));
   channels.forEach((c) => select.append(el('option', { value: c.id, textContent: `#${c.name}${c.parent ? ` (${c.parent})` : ''}` })));
   if (cfg) select.value = cfg.channelId;
-  const channelRow = el('div', { className: 'row' }, el('span', { className: 'muted', textContent: 'Channel' }), select);
-
-  const options = el('div');
+  const grid = el('div', { className: 'grid' }, field('Channel', select));
+  const checks = el('div', { className: 'checks' });
   let trigger; let consecutive; let repeating;
-  const checkbox = (label, checked) => { const i = el('input', { type: 'checkbox', checked: !!checked }); return [i, el('label', {}, i, label)]; };
   if (key === 'wordstory') {
-    trigger = el('input', { type: 'number', min: limits.min, max: limits.max, value: cfg?.trigger ?? limits.default, style: 'width:6rem' });
-    const [ci, cl] = checkbox('Allow the same person to write twice in a row', cfg?.consecutive); consecutive = ci;
-    options.append(el('div', { className: 'row' }, el('label', {}, 'Words per story', trigger), el('span', { className: 'muted small', textContent: `(${limits.min}-${limits.max})` })), el('div', { className: 'row' }, cl));
+    trigger = el('input', { type: 'number', min: limits.min, max: limits.max, value: cfg?.trigger ?? limits.default });
+    grid.append(field(`Words per story (${limits.min}-${limits.max})`, trigger));
+    const c = check('Same person can write twice in a row', cfg?.consecutive); consecutive = c.input; checks.append(c.node);
   }
   if (key === 'wordchain') {
-    const [ri, rl] = checkbox('Allow repeated words', cfg?.repeatingValid); repeating = ri;
-    const [ci, cl] = checkbox('Allow the same person to write twice in a row', cfg?.consecutive); consecutive = ci;
-    options.append(el('div', { className: 'row' }, rl), el('div', { className: 'row' }, cl));
+    const r = check('Allow repeated words', cfg?.repeatingValid); repeating = r.input; checks.append(r.node);
+    const c = check('Same person can write twice in a row', cfg?.consecutive); consecutive = c.input; checks.append(c.node);
   }
-
-  const save = el('button', { className: 'primary', textContent: cfg ? 'Save' : 'Set up' });
+  const save = el('button', { className: 'primary', textContent: cfg ? 'Save' : 'Set up', disabled: !!cfg });
+  dirtyOnEdit(form, save);
   save.onclick = async () => {
     const body = { channelId: select.value || null };
     if (trigger) body.trigger = parseInt(trigger.value, 10);
     if (consecutive) body.consecutive = consecutive.checked;
     if (repeating) body.repeatingValid = repeating.checked;
-    save.disabled = true; show(true, 'Saving…');
+    save.disabled = true; save.textContent = 'Saving…';
     const r = await call('PUT', `/api/guilds/${guildId}/games/${key}`, body);
-    save.disabled = false;
-    if (r.ok) { show(true, r.data.message || 'Saved.'); loadGames(); } else show(false, r.data.error || `Failed (${r.status}).`);
+    save.textContent = cfg ? 'Save' : 'Set up';
+    if (r.ok) { toast(true, r.data.message || 'Saved.'); loadGames(); } else { save.disabled = false; toast(false, r.data.error || `Failed (${r.status}).`); }
   };
-  const actions = el('div', { className: 'row' }, save);
-  if (cfg) {
-    const toggle = el('button', { textContent: cfg.enabled ? 'Disable' : 'Enable' });
-    toggle.onclick = async () => {
-      toggle.disabled = true;
-      const r = await call('POST', `/api/guilds/${guildId}/games/${key}/enabled`, { enabled: !cfg.enabled });
-      if (r.ok) loadGames(); else { toggle.disabled = false; show(false, r.data.error || `Failed (${r.status}).`); }
-    };
-    actions.append(toggle);
-  }
-  card.append(top, el('div', { className: 'muted small', textContent: info.blurb }), channelRow, options, actions);
-  if (info.warn) card.append(el('div', { className: 'muted small', textContent: info.warn }));
-  card.append(result);
+  form.append(grid, checks, el('div', { className: 'foot' }, save, el('span', { className: 'muted small', textContent: info.warn || info.blurb })));
+  card.append(head, el('div', { className: 'muted small', textContent: info.blurb }), form);
   return card;
 }
 
-let gamesToken = 0;
 async function loadGames() {
-  const box = $('#games');
-  const g = guilds.find((x) => x.id === $('#guild').value);
-  const note = (text, withInvite) => { box.replaceChildren(el('p', { className: 'muted', textContent: text })); if (withInvite) box.append(el('a', { href: inviteUrl, target: '_blank', rel: 'noopener' }, el('button', { className: 'primary', textContent: 'Add bot to this server' }))); };
-  if (!g) return note('Pick a server.');
-  if (!g.admin) return note('You need the Administrator permission in this server to change games.');
-  if (g.botIn === false) return note('The bot is not in this server yet.', true);
-  const token = ++gamesToken;
+  const box = $('#pane-games');
+  const g = curGuild(); if (!g) return;
   const r = await call('GET', `/api/guilds/${g.id}/games`);
-  if (token !== gamesToken) return; // the user switched servers meanwhile
-  if (!r.ok) return r.data.error === 'not_in_guild' ? note('The bot is not in this server yet.', true) : note(r.data.error || 'Could not load games.');
+  if (curGuild()?.id !== g.id) return; // the user switched servers meanwhile
+  if (!r.ok) return box.replaceChildren(el('p', { className: 'muted', textContent: r.data.error === 'not_in_guild' ? 'The bot is not in this server yet.' : (r.data.error || 'Could not load games.') }));
   box.replaceChildren(...Object.keys(GAME_INFO).map((k) => renderGame(g.id, k, r.data.games[k], r.data.channels, r.data.limits.trigger)));
 }
 
-
-// ---------------- triggers (owner only, home server) ----------------
-const secsToText = (ms) => (!ms ? '' : ms % 864e5 === 0 ? `${ms / 864e5}d` : ms % 36e5 === 0 ? `${ms / 36e5}h` : `${Math.round(ms / 6e4)}m`);
-let trig = null; // { roles, actions, max, triggers }
-let trigGuild = null; // the server the trigger section is showing
+// ---------------- triggers (beta) ----------------
+const VARS = ['${authormention}', '${authername}', '${targetmention}', '${targetname}', '${rolename}', '${rolemention}'];
+let trig = null; // { guild, roles, actions, max, triggers }
 
 function describe(t) {
   const a = trig.actions.find((x) => x.value === t.action);
   const role = trig.roles.find((r) => r.id === t.roleId);
-  const action = a ? `${a.label} on ${t.applyTo === 'author' ? 'author' : 'target'}${role ? ` · @${role.name}` : ''}${t.action === 'mute' ? ` · ${secsToText(t.durationMs)}` : ''}` : `Response only${role ? ` · @${role.name}` : ''}`;
-  const resp = t.respondType === 'message' ? `Message: ${(t.respond || '').slice(0, 80)}` : `Reaction ${t.respond || ''}`;
-  return `${action}  |  ${resp}`;
+  const action = a ? `${a.label} on ${t.applyTo === 'author' ? 'author' : 'target'}${role ? ` · @${role.name}` : ''}${t.action === 'mute' ? ` · ${short(t.durationMs)}` : ''}` : `Response only${role ? ` · @${role.name}` : ''}`;
+  const resp = t.respondType === 'message' ? `says “${(t.respond || '').slice(0, 60)}”` : `reacts ${t.respond || ''}`;
+  return `${action} → ${resp}`;
 }
 
 function renderTriggerForm(edit) {
-  const f = $('#trigForm'); f.replaceChildren();
+  const box = $('#trigForm'); box.replaceChildren();
   const e = edit || {};
-  const field = (label, node) => el('label', { className: 'field' }, el('span', { textContent: label }), node);
-  const name = el('input', { type: 'text', placeholder: 'hire', maxLength: 33, value: e.name || '', disabled: false });
-  const action = el('select'); action.append(el('option', { value: '', textContent: 'None (response only)' }));
+  $('#trigTitle').textContent = edit ? `Editing !${edit.name}` : 'New trigger';
+  $('#trigNew').open = !!edit;
+  const name = el('input', { type: 'text', placeholder: 'hire', maxLength: 33, value: e.name || '' });
+  const action = el('select'); action.append(el('option', { value: '', textContent: 'Nothing (just respond)' }));
   trig.actions.forEach((a) => action.append(el('option', { value: a.value, textContent: a.label }))); action.value = e.action || '';
-  const applyTo = el('select'); applyTo.append(el('option', { value: 'target', textContent: 'Target (first @mention)' }), el('option', { value: 'author', textContent: 'Author (who typed it)' })); applyTo.value = e.applyTo || 'target';
+  const applyTo = seg([['target', 'Target (@mention)'], ['author', 'Author']], e.applyTo || 'target');
   const role = el('select'); role.append(el('option', { value: '', textContent: 'No role' }));
   trig.roles.forEach((r) => role.append(el('option', { value: r.id, textContent: `@${r.name}${r.editable ? '' : ' (bot cannot manage)'}` }))); role.value = e.roleId || '';
-  const duration = el('input', { type: 'text', placeholder: '10m, 2h, 1d', value: e.action === 'mute' ? secsToText(e.durationMs) : '' });
-  const rtype = el('select'); rtype.append(el('option', { value: 'reaction', textContent: 'Reaction (emoji)' }), el('option', { value: 'message', textContent: 'Message' })); rtype.value = e.respondType || 'reaction';
-  const respond = el('textarea', { placeholder: 'Emoji, or text with ${authormention} ${authername} ${targetmention} ${targetname} ${rolename} ${rolemention}', value: e.respond || '' });
-  const inReply = el('input', { type: 'checkbox', checked: e.inReply !== false });
-  const delAfter = el('input', { type: 'number', min: 0, max: 60, value: e.deleteAfter ?? 0, style: 'width:5rem' });
-  const delPrompt = el('input', { type: 'checkbox', checked: !!e.deletePrompt });
-  const delPromptAfter = el('input', { type: 'number', min: 0, max: 60, value: e.deletePromptAfter ?? 0, style: 'width:5rem' });
+  const duration = el('input', { type: 'text', placeholder: '10m, 2h, 1d', value: e.action === 'mute' ? short(e.durationMs) : '' });
+  const rtype = seg([['reaction', 'Reaction'], ['message', 'Message']], e.respondType || 'reaction', () => sync());
+  const respond = el('textarea', { value: e.respond || '' });
+  const vars = el('div', { className: 'vars' }, ...VARS.map((v) => el('button', { type: 'button', textContent: v, onclick: () => { respond.setRangeText(v, respond.selectionStart ?? respond.value.length, respond.selectionEnd ?? respond.value.length, 'end'); respond.focus(); } })));
+  const inReply = check('Reply to the message that ran it', e.inReply !== false);
+  const delAfter = el('input', { type: 'number', min: 0, max: 60, value: e.deleteAfter ?? 0 });
+  const delPrompt = check('Delete the message that ran the command', !!e.deletePrompt);
+  const delPromptAfter = el('input', { type: 'number', min: 0, max: 60, value: e.deletePromptAfter ?? 0 });
 
-  const rowRole = field('Role (for Role add / remove, and ${rolename})', role);
-  const rowDur = field('Mute duration (1m - 28d)', duration);
-  const rowReply = el('div', { className: 'row' }, el('label', {}, inReply, 'Reply to the prompt'));
-  const rowPromptAfter = el('div', { className: 'row' }, el('label', {}, 'Seconds before the prompt is deleted (0 = right away)', delPromptAfter));
-  const sync = () => { rowDur.hidden = action.value !== 'mute'; rowReply.hidden = rtype.value !== 'message'; rowPromptAfter.hidden = !delPrompt.checked; };
-  [action, rtype, delPrompt].forEach((n) => { n.onchange = sync; });
+  const fApply = field('Do it to', applyTo.node);
+  const fRole = field('Role', role);
+  const fDur = field('Mute for (1m - 28d)', duration);
+  const fPromptAfter = field('Delete it after (seconds, 0 = now)', delPromptAfter);
+  const sync = () => {
+    const a = trig.actions.find((x) => x.value === action.value);
+    const msg = rtype.get() === 'message';
+    fApply.hidden = !action.value; fDur.hidden = action.value !== 'mute';
+    fRole.firstChild.textContent = a?.needsRole ? 'Role (required)' : 'Role (optional, for ${rolename})';
+    respond.rows = msg ? 3 : 1;
+    respond.placeholder = msg ? 'What I say. Click a variable below to insert it.' : 'An emoji, like ✅';
+    vars.hidden = !msg; inReply.node.hidden = !msg; fPromptAfter.hidden = !delPrompt.input.checked;
+  };
+  action.onchange = sync; delPrompt.input.onchange = sync;
 
-  const result = el('div', { className: 'small' });
-  const show = (ok, text) => { result.className = 'small ' + (ok ? 'ok' : 'err'); result.style.whiteSpace = 'pre-line'; result.textContent = text; };
   const save = el('button', { className: 'primary', textContent: edit ? 'Update trigger' : 'Create trigger' });
   save.onclick = async () => {
     const body = {
-      command: name.value.trim(), action: action.value || null, applyTo: applyTo.value, roleId: role.value || null,
+      command: name.value.trim().replace(/^!/, ''), action: action.value || null, applyTo: applyTo.get(), roleId: role.value || null,
       duration: action.value === 'mute' ? duration.value.trim() || null : null,
-      respondType: rtype.value, respond: respond.value.trim(),
-      inReply: inReply.checked, deleteAfter: parseInt(delAfter.value, 10) || 0,
-      deletePrompt: delPrompt.checked, deletePromptAfter: parseInt(delPromptAfter.value, 10) || 0,
+      respondType: rtype.get(), respond: respond.value.trim(),
+      inReply: inReply.input.checked, deleteAfter: parseInt(delAfter.value, 10) || 0,
+      deletePrompt: delPrompt.input.checked, deletePromptAfter: parseInt(delPromptAfter.value, 10) || 0,
     };
-    save.disabled = true; show(true, 'Saving…');
-    const r = await call('PUT', `/api/guilds/${trigGuild}/triggers`, body);
+    save.disabled = true;
+    const r = await call('PUT', `/api/guilds/${trig.guild.id}/triggers`, body);
     save.disabled = false;
-    if (r.ok) { await loadTriggers(trigGuild, r.data.message); } else show(false, r.data.error || `Failed (${r.status}).`);
+    if (r.ok) { toast(true, r.data.message || 'Saved.'); await loadTriggers(trig.guild.id); } else toast(false, r.data.error || `Failed (${r.status}).`);
   };
-  const clear = el('button', { textContent: 'Clear', onclick: () => renderTriggerForm(null) });
-
-  f.append(
-    el('b', { textContent: edit ? `Editing !${edit.name}` : 'New trigger' }),
-    el('div', { className: 'row' }, field('Command name (letters only)', name), field('Action', action), field('Apply to', applyTo)),
-    el('div', { className: 'row' }, rowRole, rowDur),
-    el('div', { className: 'row' }, field('Response type', rtype)),
-    el('div', { className: 'row' }, field('Response', respond)),
-    rowReply,
-    el('div', { className: 'row' }, el('label', {}, 'Seconds before my response is removed (0 = keep)', delAfter)),
-    el('div', { className: 'row' }, el('label', {}, delPrompt, 'Delete the message that ran the command')),
-    rowPromptAfter,
-    el('div', { className: 'row' }, save, clear),
-    result,
-  );
+  const more = el('details', { className: 'more' }, el('summary', { textContent: 'More options' }),
+    el('div', { className: 'grid' }, field('Remove my response after (seconds, 0 = keep)', delAfter), fPromptAfter),
+    el('div', { className: 'checks' }, inReply.node, delPrompt.node));
+  box.append(
+    el('div', { className: 'grid' }, field('Command', el('div', { className: 'prefix' }, el('span', { textContent: '!' }), name)), field('Action', action), fApply, fRole, fDur),
+    el('div', { className: 'grid' }, field('Response', rtype.node)),
+    respond, vars, more,
+    el('div', { className: 'foot' }, save, el('button', { type: 'button', textContent: 'Clear', onclick: () => renderTriggerForm(null) })));
   sync();
-  return show;
 }
 
-async function loadTriggers(guildId, notice) {
-  trigGuild = guildId;
+async function loadTriggers(id) {
   const list = $('#trigList');
-  const r = await call('GET', `/api/guilds/${guildId}/triggers`);
-  if (!r.ok) { list.replaceChildren(el('p', { className: 'err small', textContent: r.data.error === 'not_in_guild' ? 'The bot is not in this server yet.' : (r.data.error || 'Could not load triggers.') })); $('#trigForm').replaceChildren(); return; }
+  const r = await call('GET', `/api/guilds/${id}/triggers`);
+  if (curGuild()?.id !== id) return;
+  if (!r.ok) { list.replaceChildren(el('p', { className: 'err small', style: 'color:var(--err)', textContent: r.data.error === 'not_in_guild' ? 'The bot is not in this server yet.' : (r.data.error || 'Could not load triggers.') })); $('#trigForm').replaceChildren(); return; }
   trig = r.data;
-  $('#trigServer').textContent = `· ${trig.guild.name} (${trig.triggers.length}/${trig.max})`;
-  list.replaceChildren(...(trig.triggers.length ? trig.triggers.map((t) => {
-    const del = el('button', { textContent: 'Delete' });
-    del.onclick = async () => {
-      if (!confirm(`Delete !${t.name}?`)) return;
-      del.disabled = true;
-      const d = await call('DELETE', `/api/guilds/${guildId}/triggers/${encodeURIComponent(t.name)}`);
-      if (d.ok) loadTriggers(guildId, d.data.message); else { del.disabled = false; alert(d.data.error || 'Failed.'); }
-    };
-    return el('div', { className: 'card' },
-      el('div', { className: 'top' }, el('b', { className: 'tag', textContent: `!${t.name}` }), el('span', { className: 'row' }, el('button', { textContent: 'Edit', onclick: () => { renderTriggerForm(t); $('#trigForm').scrollIntoView({ behavior: 'smooth' }); } }), del)),
-      el('div', { className: 'muted small', textContent: describe(t) }));
-  }) : [el('p', { className: 'muted small', textContent: 'No triggers yet.' })]));
-  const show = renderTriggerForm(null);
-  if (notice) show(true, notice);
+  list.replaceChildren(el('div', { className: 'muted small', style: 'margin:.2rem 0 .4rem', textContent: `${trig.triggers.length} of ${trig.max} used` }),
+    ...(trig.triggers.length ? trig.triggers.map((t) => {
+      const del = el('button', { className: 'ghost danger', textContent: 'Delete' });
+      del.onclick = async () => {
+        if (!confirm(`Delete !${t.name}?`)) return;
+        del.disabled = true;
+        const d = await call('DELETE', `/api/guilds/${id}/triggers/${encodeURIComponent(t.name)}`);
+        if (d.ok) { toast(true, d.data.message || 'Deleted.'); loadTriggers(id); } else { del.disabled = false; toast(false, d.data.error || 'Failed.'); }
+      };
+      return el('div', { className: 'item' }, el('b', { className: 'tag', textContent: `!${t.name}` }), el('span', { className: 'muted small grow', textContent: describe(t) }),
+        el('button', { className: 'ghost', textContent: 'Edit', onclick: () => { renderTriggerForm(t); $('#trigNew').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } }), del);
+    }) : [el('p', { className: 'muted small', textContent: 'No triggers yet. Create your first one below.' })]));
+  renderTriggerForm(null);
 }
 
 // ---------------- !emoji access (beta) ----------------
-async function loadEmoji(guildId) {
-  const f = $('#emojiForm'); f.replaceChildren(el('span', { className: 'muted small', textContent: 'Loading…' }));
-  const r = await call('GET', `/api/guilds/${guildId}/emoji`);
-  if (!r.ok) { f.replaceChildren(el('p', { className: 'err small', textContent: r.data.error === 'not_in_guild' ? 'The bot is not in this server yet.' : (r.data.error || 'Could not load.') })); return; }
+async function loadEmoji(id) {
+  const pane = $('#pane-emoji'); pane.replaceChildren(el('p', { className: 'muted small', textContent: 'Loading…' }));
+  const r = await call('GET', `/api/guilds/${id}/emoji`);
+  if (curGuild()?.id !== id) return;
+  if (!r.ok) return pane.replaceChildren(el('p', { className: 'muted', textContent: r.data.error === 'not_in_guild' ? 'The bot is not in this server yet.' : (r.data.error || 'Could not load.') }));
   const { roles, config } = r.data;
-  f.replaceChildren();
-  const defPerm = el('input', { type: 'checkbox', checked: config.defaultPerm });
-  const users = el('textarea', { placeholder: 'User IDs, one per line or separated by commas', value: config.userIds.join('\n') });
+  const save = el('button', { className: 'primary', textContent: 'Save', disabled: true });
+  const dirty = () => { save.disabled = false; };
+
+  const def = sw(config.defaultPerm, dirty);
+  const users = new Set(config.userIds);
+  const userChips = el('div', { className: 'chips' });
+  const paintUsers = () => userChips.replaceChildren(...[...users].map((u) => el('span', { className: 'chip' }, u, el('button', { type: 'button', title: 'Remove', textContent: '×', onclick: () => { users.delete(u); paintUsers(); dirty(); } }))));
+  const userInput = el('input', { type: 'text', placeholder: 'Paste user IDs or @mentions, then press Enter' });
+  const addUsers = () => { const ids = userInput.value.match(/\d{15,25}/g) || []; if (ids.length) { ids.forEach((u) => users.add(u)); userInput.value = ''; paintUsers(); dirty(); } };
+  userInput.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ',') { ev.preventDefault(); addUsers(); } };
+  userInput.onpaste = () => setTimeout(addUsers, 0); userInput.onblur = addUsers;
+  paintUsers();
+
   const picked = new Set(config.roleIds);
-  const roleBox = el('div', { className: 'row' });
-  if (!roles.length) roleBox.append(el('span', { className: 'muted small', textContent: 'No roles found.' }));
+  const roleChips = el('div', { className: 'chips' });
+  if (!roles.length) roleChips.append(el('span', { className: 'muted small', textContent: 'No roles found.' }));
   roles.forEach((role) => {
-    const c = el('input', { type: 'checkbox', checked: picked.has(role.id) });
-    c.onchange = () => { if (c.checked) picked.add(role.id); else picked.delete(role.id); };
-    roleBox.append(el('label', { className: 'badge', style: role.color && role.color !== '#000000' ? `color:${role.color}` : '' }, c, `@${role.name}`));
+    const b = el('button', { type: 'button', className: `chip${picked.has(role.id) ? ' sel' : ''}` }, el('span', { className: 'dot', style: role.color && role.color !== '#000000' ? `background:${role.color}` : '' }), role.name);
+    b.onclick = () => { if (picked.has(role.id)) picked.delete(role.id); else picked.add(role.id); b.classList.toggle('sel'); dirty(); };
+    roleChips.append(b);
   });
-  const result = el('div', { className: 'small' });
-  const show = (ok, text) => { result.className = 'small ' + (ok ? 'ok' : 'err'); result.textContent = text; };
-  const save = el('button', { className: 'primary', textContent: 'Save' });
+
   save.onclick = async () => {
-    const userIds = [...new Set(users.value.match(/\d{15,25}/g) || [])];
-    save.disabled = true; show(true, 'Saving…');
-    const s = await call('PUT', `/api/guilds/${guildId}/emoji`, { userIds, roleIds: [...picked], defaultPerm: defPerm.checked });
-    save.disabled = false;
-    if (s.ok) show(true, 'Saved.'); else show(false, s.data.error || `Failed (${s.status}).`);
+    addUsers();
+    save.disabled = true;
+    const s = await call('PUT', `/api/guilds/${id}/emoji`, { userIds: [...users], roleIds: [...picked], defaultPerm: def.input.checked });
+    if (s.ok) toast(true, 'Saved.'); else { save.disabled = false; toast(false, s.data.error || `Failed (${s.status}).`); }
   };
-  f.append(
-    el('div', { className: 'row' }, el('label', {}, defPerm, 'Default permission: members with Manage Expressions can use !emoji')),
-    el('div', { className: 'row' }, el('label', { className: 'field' }, el('span', { textContent: 'Users who can use !emoji (IDs)' }), users)),
-    el('div', { className: 'field' }, el('span', { textContent: 'Roles who can use !emoji' }), roleBox),
-    el('div', { className: 'row' }, save), result,
-  );
+  const badge = el('span', { className: `badge ${config.enabled ? 'on' : 'off'}`, textContent: config.enabled ? 'On' : 'Off' });
+  const power = sw(config.enabled, async (input) => {
+    input.disabled = true;
+    const s = await call('PUT', `/api/guilds/${id}/emoji`, { enabled: input.checked }); // only this setting changes
+    input.disabled = false;
+    if (s.ok) { badge.className = `badge ${input.checked ? 'on' : 'off'}`; badge.textContent = input.checked ? 'On' : 'Off'; toast(true, input.checked ? '!emoji enabled.' : '!emoji disabled.'); }
+    else { input.checked = !input.checked; toast(false, s.data.error || `Failed (${s.status}).`); }
+  });
+  power.node.title = 'Turn !emoji on or off';
+  pane.replaceChildren(el('div', { className: 'card' },
+    el('div', { className: 'head' }, el('b', { textContent: '!emoji' }), badge, el('span', { className: 'grow' }), power.node),
+    el('p', { className: 'muted small', style: 'margin:.2rem 0 .5rem', textContent: 'Who can use !emoji to add emoji to this server. Same as /emoji in Discord.' }),
+    el('label', { className: 'check', style: 'gap:.6rem' }, def.node, 'Anyone with the Manage Expressions permission'),
+    el('div', { className: 'field', style: 'margin-top:.7rem' }, el('span', { textContent: 'Roles that can use it' }), roleChips),
+    el('div', { className: 'field', style: 'margin-top:.4rem' }, el('span', { textContent: 'People that can use it' }), userChips, userInput),
+    el('div', { className: 'foot' }, save)));
+}
+
+// ---------------- servers and tabs ----------------
+let tab = null; let loaded = {};
+const LOADERS = {
+  games: () => loadGames(),
+  triggers: (g) => loadTriggers(g.id),
+  emoji: (g) => loadEmoji(g.id),
+  feeds: (g) => loadFeeds(g.id),
+};
+async function openTab(name) {
+  const g = curGuild(); if (!g) return;
+  tab = name;
+  try { localStorage.setItem('tab', name); } catch {}
+  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('sel', b.dataset.tab === name));
+  for (const k of Object.keys(LOADERS)) $(`#pane-${k}`).hidden = k !== name;
+  if (!loaded[name]) { loaded[name] = true; await LOADERS[name](g); }
 }
 
 async function loadGuild() {
-  const g = guilds.find((x) => x.id === $('#guild').value);
-  const trigOn = !!(g?.admin && g?.features?.trigger?.on);
+  const g = curGuild();
+  try { localStorage.setItem('guild', g?.id || ''); } catch {}
+  loaded = {};
   $('#betaTag').hidden = !g?.beta; // this server has beta access
-  const emojiOn = !!(g?.admin && g?.features?.emoji?.on);
-  $('#emojiSection').hidden = !emojiOn;
-  $('#emojiTag').hidden = g?.features?.emoji?.stage !== 'beta';
-  $('#trigSection').hidden = !trigOn;
-  $('#trigTag').hidden = g?.features?.trigger?.stage !== 'beta';
-  const wait = () => el('p', { className: 'muted small', textContent: 'Loading…' });
-  $('#games').replaceChildren(wait()); $('#feeds').replaceChildren(wait()); if (trigOn) $('#trigList').replaceChildren(wait());
-  await Promise.all([loadGames(), loadFeeds(), trigOn ? loadTriggers(g.id) : null, emojiOn ? loadEmoji(g.id) : null]);
+  const banner = $('#banner'); banner.hidden = true;
+  const tabs = [];
+  if (g?.admin) tabs.push(['games', 'Games']);
+  if (g?.admin && g.features?.trigger?.on) tabs.push(['triggers', 'Triggers', g.features.trigger.stage === 'beta']);
+  if (g?.admin && g.features?.emoji?.on) tabs.push(['emoji', '!emoji', g.features.emoji.stage === 'beta']);
+  tabs.push(['feeds', 'Feeds']);
+  if (!g) { $('#tabs').replaceChildren(); Object.keys(LOADERS).forEach((k) => { $(`#pane-${k}`).hidden = true; }); return; }
+  if (g.botIn === false) { // the bot is not there: nothing to configure yet
+    $('#tabs').replaceChildren(); Object.keys(LOADERS).forEach((k) => { $(`#pane-${k}`).hidden = true; });
+    banner.replaceChildren(el('div', { className: 'head' }, el('span', { className: 'grow', textContent: 'The bot is not in this server yet.' }), el('a', { href: inviteUrl, target: '_blank', rel: 'noopener' }, el('button', { className: 'primary', textContent: 'Add bot' }))));
+    banner.hidden = false; return;
+  }
+  if (!g.admin) { banner.replaceChildren(el('span', { className: 'muted small', textContent: 'Games, triggers and !emoji need the Administrator permission in this server.' })); banner.hidden = false; }
+  $('#tabs').replaceChildren(...tabs.map(([k, label, beta]) => el('button', { type: 'button', dataset: { tab: k }, onclick: () => openTab(k) }, label, beta && el('span', { className: 'badge beta', textContent: 'BETA' }))));
+  let want = 'games'; try { want = localStorage.getItem('tab') || 'games'; } catch {}
+  await openTab(tabs.some((t) => t[0] === want) ? want : tabs[0][0]);
 }
 
 (async () => {
@@ -318,14 +395,16 @@ async function loadGuild() {
     guilds = await api('/api/guilds');
     $('#who').textContent = (await api('/api/me')).username;
     guilds.forEach((g) => $('#guild').append(el('option', { value: g.id, textContent: g.name })));
+    try { const last = localStorage.getItem('guild'); if (last && guilds.some((g) => g.id === last)) $('#guild').value = last; } catch {}
     $('#guild').onchange = loadGuild;
     ready = true;
   } catch { /* not logged in */ }
   if (!ready) { $('#loading').hidden = true; $('#login').hidden = false; $('#inviteWrap').hidden = false; return; }
-  // Load everything first, then show the page in one go (no half-loaded flicker).
+  $('#logout').hidden = false;
+  // Load the first tab before revealing the page (no half-loaded flicker), and always remove the spinner.
   try {
-    if (guilds.length) await loadGuild(); else { $('#games').textContent = 'No servers you manage.'; $('#feeds').textContent = ''; }
+    if (guilds.length) await loadGuild(); else { $('#banner').textContent = 'No servers you manage.'; $('#banner').hidden = false; }
   } catch (e) { console.error(e); }
-  finally { $('#loading').hidden = true; $('#app').hidden = false; $('#inviteWrap').hidden = false; } // the spinner always goes away
+  finally { $('#loading').hidden = true; $('#app').hidden = false; $('#inviteWrap').hidden = false; }
 })();
 </script></body></html>
