@@ -31,19 +31,28 @@ const CALLBACK_URL = buildCallbackUrl();
 console.log(`OAuth2 redirect URI in use: ${CALLBACK_URL}`);
 console.log('If Discord says "Invalid OAuth2 redirect_uri", add EXACTLY that URL in Developer Portal > OAuth2 > Redirects and press Save.');
 
-const MANAGE_GUILD = 0x20n;
 const ADMIN = 0x8n;
+const CDN = 'https://cdn.discordapp.com';
+const avatarUrl = (u) => (u.avatar
+  ? `${CDN}/avatars/${u.id}/${u.avatar}.${u.avatar.startsWith('a_') ? 'gif' : 'png'}?size=64`
+  : `${CDN}/embed/avatars/${Number((BigInt(u.id) >> 22n) % 6n)}.png`);
+const iconUrl = (g) => (g.icon ? `${CDN}/icons/${g.id}/${g.icon}.${g.icon.startsWith('a_') ? 'gif' : 'png'}?size=64` : null);
+const slimGuild = (g) => ({ id: g.id, name: g.name, owner: g.owner, permissions: g.permissions, icon: g.icon || null });
 // View Channel, Send Messages, Embed Links, Add Reactions, Read History, Mention Everyone, Manage Roles
 const INVITE_PERMS = 1024 + 2048 + 16384 + 64 + 65536 + 131072 + 268435456;
 
-passport.serializeUser((u, d) => d(null, { id: u.id, username: u.username, guilds: u.guilds.map((g) => ({ id: g.id, name: g.name, owner: g.owner, permissions: g.permissions })) }));
+// The access token stays in the server-side session (never sent to the browser); it is only used by the refresh button.
+passport.serializeUser((u, d) => d(null, {
+  id: u.id, username: u.username, name: u.global_name || u._json?.global_name || null, avatar: u.avatar || null,
+  token: u.accessToken || null, guilds: u.guilds.map(slimGuild),
+}));
 passport.deserializeUser((u, d) => d(null, u));
 passport.use(new Strategy({
   clientID: process.env.CLIENT_ID,
   clientSecret: process.env.CLIENT_SECRET,
   callbackURL: CALLBACK_URL,
   scope: ['identify', 'guilds'],
-}, (_a, _r, profile, done) => done(null, profile)));
+}, (accessToken, _r, profile, done) => { profile.accessToken = accessToken; done(null, profile); }));
 
 const app = express();
 app.set('trust proxy', 1);
@@ -59,12 +68,6 @@ app.use(passport.session());
 
 const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 const authed = (req, res, next) => (req.isAuthenticated() ? next() : res.status(401).json({ error: 'Not logged in' }));
-const canManage = (req, res, next) => {
-  const g = req.user.guilds.find((x) => x.id === req.params.id);
-  const p = g && BigInt(g.permissions);
-  if (!g || !(g.owner || (p & MANAGE_GUILD) || (p & ADMIN))) return res.status(403).json({ error: 'Forbidden' });
-  next();
-};
 
 // ---- games: the website and the bot talk through MongoDB (the bot's host has no open web port) ----
 // Reads come straight from the database. Changes are queued as a WebJob; the bot runs it within a few
@@ -98,31 +101,118 @@ app.get('/auth/discord', passport.authenticate('discord'));
 app.get('/auth/callback', passport.authenticate('discord', { failureRedirect: '/' }), (_, r) => r.redirect('/'));
 app.get('/auth/logout', (req, res) => req.logout(() => res.redirect('/')));
 
-app.get('/api/me', authed, (req, res) => res.json({ id: req.user.id, username: req.user.username }));
+app.get('/api/me', authed, (req, res) => res.json({ id: req.user.id, username: req.user.username, name: req.user.name || req.user.username, avatar: avatarUrl(req.user) }));
 app.get('/api/invite', (_req, res) => res.json({
   url: `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&permissions=${INVITE_PERMS}&scope=bot%20applications.commands`,
 }));
-app.get('/api/guilds', authed, wrap(async (req, res) => {
-  const list = req.user.guilds
-    .filter((g) => g.owner || (BigInt(g.permissions) & (MANAGE_GUILD | ADMIN)))
-    .map((g) => ({ id: g.id, name: g.name, admin: isAdminOf(g), botIn: null, beta: false, features: {} }));
-  if (list.length) {
-    const ids = list.map((g) => g.id);
-    const [here, acc] = await Promise.all([
-      GuildInfo.find({ guildId: { $in: ids } }, { guildId: 1 }).lean(),
-      loadAccess(ids), // beta is looked up on every load, so changes apply on the next visit
-    ]);
-    const inSet = new Set(here.map((x) => x.guildId));
-    list.forEach((g) => {
-      g.botIn = inSet.has(g.id);
-      g.beta = acc.hasBeta(g.id);
-      g.features = { trigger: { on: acc.can('trigger', g.id), stage: acc.stage('trigger') }, emoji: { on: acc.can('emoji', g.id), stage: acc.stage('emoji') } };
-    });
-  }
-  res.json(list);
+
+// Only servers where the user is an Administrator AND the bot is present.
+async function listGuilds(user) {
+  const list = user.guilds.filter(isAdminOf);
+  if (!list.length) return [];
+  const ids = list.map((g) => g.id);
+  const [here, acc] = await Promise.all([
+    GuildInfo.find({ guildId: { $in: ids } }, { guildId: 1 }).lean(),
+    loadAccess(ids), // beta is looked up on every load, so changes apply on the next visit
+  ]);
+  const inSet = new Set(here.map((x) => x.guildId));
+  return list.filter((g) => inSet.has(g.id)).map((g) => ({
+    id: g.id, name: g.name, icon: iconUrl(g), admin: true, beta: acc.hasBeta(g.id),
+    features: { trigger: { on: acc.can('trigger', g.id), stage: acc.stage('trigger') }, emoji: { on: acc.can('emoji', g.id), stage: acc.stage('emoji') } },
+  }));
+}
+app.get('/api/guilds', authed, wrap(async (req, res) => res.json(await listGuilds(req.user))));
+
+// Refresh button: re-reads the user's servers/permissions from Discord, then re-checks where the bot is.
+app.post('/api/refresh', authed, wrap(async (req, res) => {
+  const key = `r:${req.user.id}`;
+  if (Date.now() - (recent.get(key) ?? 0) < 3000) return res.status(429).json({ error: 'Slow down a little.' });
+  recent.set(key, Date.now());
+  if (!req.user.token) return res.status(401).json({ error: 'Please log in again to refresh your servers.' });
+  let r;
+  try { r = await fetch('https://discord.com/api/v10/users/@me/guilds', { headers: { authorization: `Bearer ${req.user.token}` }, signal: AbortSignal.timeout(10000) }); }
+  catch { return res.status(502).json({ error: "Couldn't reach Discord. Try again in a moment." }); }
+  if (r.status === 401) return res.status(401).json({ error: 'Your Discord login expired. Please log in again.' });
+  if (r.status === 429) return res.status(429).json({ error: 'Discord is busy. Try again in a few seconds.' });
+  if (!r.ok) return res.status(502).json({ error: 'Discord could not be reached right now.' });
+  const user = { ...req.user, guilds: (await r.json()).map(slimGuild) };
+  req.session.passport.user = user; req.user = user;
+  await new Promise((done) => req.session.save(done));
+  res.json(await listGuilds(user));
 }));
-app.get('/api/guilds/:id/feeds', authed, canManage, wrap(async (req, res) => {
-  res.json(await Feed.find({ guildId: req.params.id }, { _id: 0, __v: 0 }).lean());
+
+// ---- feeds (Word of the Day, Daily Fact): managed straight in the shared database, Administrator only ----
+const FEED_TYPES = new Set(['wotd', 'dailyfact']);
+const FEED_LIMITS = { minMs: 3600000, maxMs: 30 * 864e5 }; // 1 hour .. 30 days
+const FEED_DEFAULTS = { wotd: { emoji: '📖' }, dailyfact: { emoji: '💡' } };
+const knownFeed = (req, res, next) => (FEED_TYPES.has(req.params.type) ? next() : res.status(404).json({ error: 'Unknown feed.' }));
+app.get('/api/guilds/:id/feeds', authed, adminOnly, wrap(async (req, res) => {
+  const guildId = req.params.id;
+  const info = await GuildInfo.findOne({ guildId }).lean();
+  if (!info) return res.status(404).json({ error: 'not_in_guild' });
+  const rows = await Feed.find({ guildId }).lean();
+  const feeds = { wotd: null, dailyfact: null };
+  rows.forEach((f) => {
+    if (FEED_TYPES.has(f.type)) feeds[f.type] = { enabled: f.enabled !== false, channelId: f.channelId, roleId: f.roleId || null, emoji: f.emoji, intervalMs: f.intervalMs, nextRunAt: f.nextRunAt, failures: f.failures || 0 };
+  });
+  res.json({
+    channels: info.channels.map((c) => ({ id: c.id, name: c.name, parent: c.parent || null })),
+    roles: info.roles.map((r) => ({ id: r.id, name: r.name, color: r.color })),
+    limits: FEED_LIMITS, defaults: FEED_DEFAULTS, feeds,
+  });
+}));
+// Create or update. Existing feeds accept partial bodies (e.g. only { enabled }); a new feed needs channelId, emoji and intervalMs.
+app.put('/api/guilds/:id/feeds/:type', authed, jsonOnly, adminOnly, knownFeed, wrap(async (req, res) => {
+  const { id: guildId, type } = req.params;
+  const key = `f:${req.user.id}:${guildId}:${type}`;
+  if (Date.now() - (recent.get(key) ?? 0) < 1000) return res.status(429).json({ error: 'Slow down a little.' });
+  recent.set(key, Date.now());
+  const info = await GuildInfo.findOne({ guildId }).lean();
+  if (!info) return res.status(404).json({ error: 'not_in_guild' });
+  const b = req.body || {};
+  const cur = await Feed.findOne({ guildId, type });
+  const set = {};
+  if (typeof b.enabled === 'boolean') set.enabled = b.enabled;
+  if (b.channelId !== undefined) {
+    if (typeof b.channelId !== 'string' || !info.channels.some((c) => c.id === b.channelId)) return res.status(400).json({ error: 'Pick a channel from the list.' });
+    set.channelId = b.channelId;
+  }
+  if (b.roleId !== undefined) {
+    if (!b.roleId) set.roleId = null;
+    else if (typeof b.roleId === 'string' && info.roles.some((r) => r.id === b.roleId)) set.roleId = b.roleId;
+    else return res.status(400).json({ error: 'Pick a role from the list.' });
+  }
+  if (b.emoji !== undefined) {
+    const e = typeof b.emoji === 'string' ? b.emoji.trim() : '';
+    if (!e || e.length > 64) return res.status(400).json({ error: 'Add an emoji (up to 64 characters).' });
+    set.emoji = e;
+  }
+  if (b.intervalMs !== undefined) {
+    const n = b.intervalMs;
+    if (!(cur && cur.intervalMs === n) && (!Number.isInteger(n) || n < FEED_LIMITS.minMs || n > FEED_LIMITS.maxMs)) return res.status(400).json({ error: 'The interval must be between 1 hour and 30 days.' });
+    set.intervalMs = n;
+  }
+  const now = new Date();
+  if (!cur) {
+    if (set.enabled === false) return res.json({ ok: true, message: 'Nothing to change.' });
+    for (const f of ['channelId', 'emoji', 'intervalMs']) if (set[f] === undefined) return res.status(400).json({ error: `Missing ${f}.` });
+    try {
+      await Feed.create({ guildId, type, channelId: set.channelId, roleId: set.roleId ?? null, emoji: set.emoji, intervalMs: set.intervalMs, nextRunAt: now, enabled: true, failures: 0, createdBy: req.user.id });
+    } catch (e) { if (e.code === 11000) return res.status(409).json({ error: 'That feed already exists. Refresh the page.' }); throw e; }
+    return res.json({ ok: true, message: 'Feed set up.' });
+  }
+  if (set.intervalMs !== undefined && set.intervalMs !== cur.intervalMs) {
+    const base = cur.lastPostAt ? cur.lastPostAt.getTime() : now.getTime();
+    set.nextRunAt = new Date(Math.max(base + set.intervalMs, now.getTime()));
+  }
+  if (set.enabled === true && cur.enabled === false && !set.nextRunAt && cur.nextRunAt < now) set.nextRunAt = now;
+  if (Object.keys(set).length) set.failures = 0; // any edit clears the failure counter
+  await Feed.updateOne({ guildId, type }, { $set: set });
+  res.json({ ok: true, message: 'Saved.' });
+}));
+app.delete('/api/guilds/:id/feeds/:type', authed, adminOnly, knownFeed, wrap(async (req, res) => {
+  await Feed.deleteOne({ guildId: req.params.id, type: req.params.type });
+  res.json({ ok: true, message: 'Feed deleted.' });
 }));
 
 // ---- games: Country Guess, Word Story, Word Chain (Administrator only) ----
