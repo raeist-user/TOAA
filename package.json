@@ -13,5 +13,8 @@
     "mongoose": "^8.5.0",
     "passport": "^0.7.0",
     "passport-discord": "^0.1.4"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
