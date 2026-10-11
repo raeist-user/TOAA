@@ -179,6 +179,7 @@ const EmojiConfig = mongoose.models.EmojiConfig || mongoose.model('EmojiConfig',
   guildId: { type: String, required: true, unique: true },
   userIds: { type: [String], default: [] },
   roleIds: { type: [String], default: [] },
+  enabled: { type: Boolean, default: true }, // false: !emoji is switched off in this server
   defaultPerm: { type: Boolean, default: true }, // true: members with Manage Expressions can use it too
 }));
 

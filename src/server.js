@@ -231,15 +231,18 @@ app.get('/api/guilds/:id/emoji', authed, adminOnly, emojiGate, wrap(async (req, 
   const cfg = await EmojiConfig.findOne({ guildId }).lean();
   res.json({
     roles: info.roles.map((r) => ({ id: r.id, name: r.name, color: r.color })),
-    config: { userIds: cfg?.userIds ?? [], roleIds: cfg?.roleIds ?? [], defaultPerm: cfg?.defaultPerm ?? true },
+    config: { enabled: cfg?.enabled ?? true, userIds: cfg?.userIds ?? [], roleIds: cfg?.roleIds ?? [], defaultPerm: cfg?.defaultPerm ?? true },
   });
 }));
 app.put('/api/guilds/:id/emoji', authed, jsonOnly, adminOnly, emojiGate, wrap(async (req, res) => {
-  if (Date.now() - (recent.get(`e:${req.user.id}:${req.params.id}`) ?? 0) < 2000) return res.status(429).json({ error: 'Slow down a little.' });
+  if (Date.now() - (recent.get(`e:${req.user.id}:${req.params.id}`) ?? 0) < 1000) return res.status(429).json({ error: 'Slow down a little.' });
   recent.set(`e:${req.user.id}:${req.params.id}`, Date.now());
   const b = req.body || {};
-  const ids = (v) => (Array.isArray(v) ? [...new Set(v.filter((x) => typeof x === 'string' && /^\d{15,25}$/.test(x)))].slice(0, 50) : []);
-  const r = await runJob(req.params.id, req.user.id, 'emoji', 'save', { userIds: ids(b.userIds), roleIds: ids(b.roleIds), defaultPerm: b.defaultPerm !== false });
+  const ids = (v) => (Array.isArray(v) ? [...new Set(v.filter((x) => typeof x === 'string' && /^\d{15,25}$/.test(x)))].slice(0, 50) : undefined); // undefined = leave unchanged
+  const r = await runJob(req.params.id, req.user.id, 'emoji', 'save', {
+    userIds: ids(b.userIds), roleIds: ids(b.roleIds),
+    defaultPerm: typeof b.defaultPerm === 'boolean' ? b.defaultPerm : undefined, enabled: typeof b.enabled === 'boolean' ? b.enabled : undefined,
+  });
   res.status(r.status).json(r.data);
 }));
 
