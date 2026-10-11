@@ -4,12 +4,12 @@
 <title>server.bot</title>
 <link rel="icon" href="/resource/bot.jpg">
 <style>
-:root{color-scheme:dark;--bg:#0f1115;--panel:#161920;--line:#23262d;--line2:#333845;--field:#1a1d24;--txt:#e6e6e6;--mute:#8b93a5;--pri:#4f6bff;--ok:#5ad17a;--err:#ff7b7b}
+:root{color-scheme:dark;--bg:#0f1115;--panel:#161920;--line:#23262d;--line2:#333845;--field:#1a1d24;--txt:#e6e6e6;--mute:#8b93a5;--pri:#4f6bff;--err:#ff7b7b;--warn:#d9b858}
 [hidden]{display:none!important}
 *{box-sizing:border-box}
 body{margin:0;font:14px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--txt)}
 header{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.5rem 1rem;border-bottom:1px solid var(--line)}
-main{max-width:820px;margin:0 auto;padding:.8rem 1rem 4rem}
+main{max-width:820px;margin:0 auto;padding:.8rem 1rem 7rem}
 a{color:#7aa2ff;text-decoration:none}.muted{color:var(--mute)}.small{font-size:.8rem}.grow{flex:1;min-width:0}
 button,select,input,textarea{font:inherit;color:inherit}
 button,select,input[type=number],input[type=text],textarea{padding:.38rem .65rem;border-radius:6px;border:1px solid var(--line2);background:var(--field)}
@@ -21,13 +21,40 @@ button{cursor:pointer;white-space:nowrap}button:hover:not(:disabled){border-colo
 .danger:hover:not(:disabled){color:var(--err)}
 .notice{background:#2e2a17;color:#cdbf7a;border-bottom:1px solid #433c1d;text-align:center;padding:.35rem 2rem;font-size:.78rem;position:relative}
 .notice button{position:absolute;right:.4rem;top:.1rem;background:none;border:0;color:inherit;font-size:1rem;padding:.1rem .4rem}
-.brand{display:flex;align-items:center;gap:.5rem}.brand img{width:26px;height:26px;border-radius:7px;object-fit:cover}
 .badge{font-size:.68rem;padding:.08rem .45rem;border-radius:99px;background:var(--line);color:var(--mute);font-weight:600;letter-spacing:.02em}
-.badge.on{background:#1d3b2a;color:var(--ok)}.badge.off{background:#3b1d1d;color:#ff8080}.badge.beta{background:#2c2550;color:#a99bff}
+.badge.beta{background:#2c2550;color:#a99bff}
 .loader{display:flex;flex-direction:column;align-items:center;gap:.8rem;padding:4rem 0;color:var(--mute)}
 .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--pri);border-radius:50%;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
-.bar{display:flex;gap:.6rem;align-items:center;margin-bottom:.6rem}.bar select{max-width:320px}
+
+/* header: invite pill + profile */
+.invite{display:flex;align-items:center;gap:.5rem;padding:.2rem .6rem .2rem .25rem;border:1px solid var(--line2);border-radius:99px;background:var(--panel);color:var(--txt)}
+.invite:hover{border-color:#4b5263}
+.invite img{width:26px;height:26px;border-radius:50%;object-fit:cover}
+.pill{font-size:.68rem;padding:.06rem .5rem;border-radius:99px;background:var(--pri);color:#fff;font-weight:600}
+.menu-wrap{position:relative;min-width:0}
+.menu{position:absolute;right:0;top:calc(100% + 6px);min-width:170px;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:4px;box-shadow:0 10px 30px #000a;z-index:40;animation:pop .14s ease-out;transform-origin:top right}
+.menu.left{left:0;right:auto;transform-origin:top left}
+@keyframes pop{from{opacity:0;transform:translateY(-4px) scale(.97)}}
+.menu-item{display:flex;align-items:center;gap:.6rem;width:100%;padding:.45rem .6rem;border:0;border-radius:6px;background:none;color:var(--txt);text-align:left}
+.menu-item:hover,.menu-item.sel{background:var(--field)}
+a.menu-item.danger{color:var(--err)}
+.userbtn{display:flex;align-items:center;gap:.5rem;padding:.2rem .5rem .2rem .25rem;border-radius:99px;border:1px solid transparent;background:none}
+.userbtn:hover:not(:disabled),.userbtn[aria-expanded=true]{background:var(--panel);border-color:var(--line2)}
+.userbtn img{width:28px;height:28px;border-radius:50%;object-fit:cover;background:var(--field)}
+.userbtn .nm{max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.caret{width:14px;height:14px;color:var(--mute);flex:none;transition:transform .15s}[aria-expanded=true]>.caret{transform:rotate(180deg)}
+
+/* server picker */
+.bar{display:flex;gap:.5rem;align-items:center;margin-bottom:.7rem;flex-wrap:wrap}
+.gsel{display:flex;align-items:center;gap:.55rem;width:min(300px,62vw);padding:.3rem .6rem .3rem .35rem;text-align:left}
+.gsel .nm,.menu-item .nm{overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.gicon{width:24px;height:24px;border-radius:50%;object-fit:cover;flex:none;background:var(--line)}
+.gicon.ph{display:grid;place-items:center;font-size:.72rem;font-weight:700;color:var(--mute)}
+#guildMenu{min-width:100%;width:max(100%,260px);max-height:60vh;overflow:auto}
+.iconbtn{width:34px;height:34px;padding:0;display:grid;place-items:center}
+.iconbtn svg{width:16px;height:16px}.iconbtn.spinning svg{animation:sp .8s linear infinite}
+
 .tabs{display:flex;gap:.2rem;border-bottom:1px solid var(--line);margin-bottom:.8rem;overflow-x:auto}
 .tabs button{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:.5rem .8rem;color:var(--mute);display:flex;gap:.4rem;align-items:center}
 .tabs button.sel{color:var(--txt);border-bottom-color:var(--pri)}
@@ -38,11 +65,12 @@ button{cursor:pointer;white-space:nowrap}button:hover:not(:disabled){border-colo
 .checks{display:flex;gap:.3rem 1.1rem;flex-wrap:wrap;margin:.45rem 0}
 .check{display:flex;gap:.4rem;align-items:center;cursor:pointer}
 .foot{display:flex;align-items:center;gap:.6rem;margin-top:.5rem;flex-wrap:wrap}
-.switch{position:relative;width:34px;height:20px;flex:none;cursor:pointer}
-.switch input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
-.switch span{position:absolute;inset:0;background:#2a2e38;border-radius:99px;transition:.15s}
-.switch span::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#aab;transition:.15s}
-.switch input:checked+span{background:var(--pri)}.switch input:checked+span::after{left:17px;background:#fff}
+.row{display:flex;gap:.4rem}
+.switch{position:relative;width:38px;height:22px;flex:none;cursor:pointer}
+.switch input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer;z-index:1}
+.switch span{position:absolute;inset:0;background:#2a2e38;border-radius:99px;transition:background .2s}
+.switch span::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#aab;transition:left .2s,background .2s}
+.switch input:checked+span{background:var(--pri)}.switch input:checked+span::after{left:19px;background:#fff}
 .switch input:disabled+span{opacity:.5}
 .seg{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
 .seg button{border:0;border-radius:0;background:var(--field);padding:.38rem .7rem}.seg button.sel{background:var(--pri);color:#fff}
@@ -60,37 +88,74 @@ button.chip{cursor:pointer}button.chip.sel{background:#232c57;border-color:var(-
 details.card>summary{cursor:pointer;font-weight:600;list-style:none}details.card>summary::-webkit-details-marker{display:none}
 details.card>summary::before{content:"+ ";color:var(--mute)}details.card[open]>summary::before{content:"– "}
 details.more{margin-top:.4rem}details.more>summary{cursor:pointer;color:var(--mute);font-size:.82rem}
-.toast{position:fixed;left:50%;bottom:1rem;transform:translateX(-50%);padding:.5rem .9rem;border-radius:8px;background:#1d2a22;border:1px solid #2f5a40;color:var(--ok);max-width:90vw;z-index:9;box-shadow:0 6px 24px #0008;white-space:pre-line}
+
+/* feature cards: title + toggle, settings slide down underneath */
+.fcard{transition:border-color .2s}
+.fcard.bad{border-color:#5a2f2f}
+.fhead{display:flex;align-items:center;gap:.8rem}
+.ftitle{display:flex;align-items:center;gap:.5rem}.ftitle b{font-size:.98rem}
+.slide{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s ease}
+.slide.open{grid-template-rows:1fr}
+.slide>.inner{overflow:hidden;min-height:0}
+.panel{padding-top:.75rem;margin-top:.6rem;border-top:1px solid var(--line);opacity:0;transform:translateY(-6px);transition:opacity .25s ease,transform .3s ease}
+.slide.open .panel{opacity:1;transform:none}
+.hint{font-size:.8rem;margin:0 0 .5rem;color:var(--mute)}.hint.warn{color:var(--warn)}.hint.bad{color:var(--err)}
+.shake{animation:shakeX .45s}
+@keyframes shakeX{0%,100%{transform:none}15%{transform:translateX(-9px)}30%{transform:translateX(8px)}45%{transform:translateX(-6px)}60%{transform:translateX(5px)}75%{transform:translateX(-3px)}}
+
+/* floating save bar */
+.savebar{position:fixed;left:50%;bottom:16px;transform:translate(-50%,160%);width:min(720px,calc(100vw - 24px));display:flex;align-items:center;gap:.6rem;padding:.55rem .6rem .55rem 1rem;background:#0b0c10;border:1px solid var(--line2);border-radius:10px;box-shadow:0 8px 30px #000b;transition:transform .38s cubic-bezier(.2,.9,.3,1.1);z-index:30}
+.savebar.show{transform:translate(-50%,0)}
+.savebar.shake{animation:shakeBar .45s}
+@keyframes shakeBar{0%,100%{transform:translate(-50%,0)}15%{transform:translate(calc(-50% - 9px),0)}30%{transform:translate(calc(-50% + 8px),0)}45%{transform:translate(calc(-50% - 6px),0)}60%{transform:translate(calc(-50% + 5px),0)}75%{transform:translate(calc(-50% - 3px),0)}}
+
+.toast{position:fixed;left:50%;top:.8rem;transform:translateX(-50%);padding:.5rem .9rem;border-radius:8px;background:#1d2029;border:1px solid var(--line2);color:var(--txt);max-width:90vw;z-index:50;box-shadow:0 6px 24px #0008;white-space:pre-line;animation:pop .15s ease-out}
 .toast.err{background:#2c1d1d;border-color:#5a2f2f;color:var(--err)}
-@media(max-width:520px){main{padding:.6rem .6rem 4rem}.bar select{max-width:none}}
+@media(max-width:520px){main{padding:.6rem .6rem 7rem}.userbtn .nm{display:none}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style></head>
 <body>
 <header>
-  <span class="brand"><img src="/resource/bot.jpg" alt="" onerror="this.remove()"><b>server.bot</b></span>
-  <span class="small"><span id="who" class="muted"></span> <a id="logout" href="/auth/logout" hidden>· Logout</a></span>
+  <a id="invite" class="invite" href="#" target="_blank" rel="noopener" title="Add server.bot to a server">
+    <img src="/resource/bot.jpg" alt="" onerror="this.remove()"><b>server.bot</b><span class="pill">invite</span>
+  </a>
+  <div class="menu-wrap" id="userWrap" hidden>
+    <button type="button" id="userBtn" class="userbtn" aria-haspopup="menu" aria-expanded="false">
+      <img id="avatar" alt=""><span class="nm" id="uname"></span><svg class="caret" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+    </button>
+    <div class="menu" id="userMenu" role="menu" hidden><a class="menu-item danger" role="menuitem" href="/auth/logout">Log out</a></div>
+  </div>
 </header>
 <div class="notice" id="notice">Heads up: this website runs on a free instance, so opening it can take a while. Sorry for the wait, it is due to lack of funding.<button type="button" aria-label="Dismiss" onclick="this.parentNode.hidden=true">×</button></div>
 <main>
   <div id="loading" class="loader"><div class="spin"></div><div>Opening…</div></div>
-  <p id="inviteWrap" hidden><a id="invite" href="#" target="_blank" rel="noopener"><button class="primary">Add bot to a server</button></a></p>
   <div id="login" hidden><a href="/auth/discord"><button class="primary">Login with Discord</button></a></div>
   <div id="app" hidden>
-    <div class="bar"><select id="guild"></select><span id="betaTag" class="badge beta" hidden>BETA ACCESS</span></div>
+    <div class="bar">
+      <div class="menu-wrap" id="guildWrap">
+        <button type="button" id="guildBtn" class="gsel" aria-haspopup="listbox" aria-expanded="false"></button>
+        <div class="menu left" id="guildMenu" role="listbox" hidden></div>
+      </div>
+      <button type="button" id="refresh" class="iconbtn" title="Refresh servers" aria-label="Refresh servers"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 10a6.5 6.5 0 1 1-2-4.7"/><path d="M16.5 3v3.5H13"/></svg></button>
+      <span id="betaTag" class="badge beta" hidden>BETA ACCESS</span>
+    </div>
     <div id="banner" class="card" hidden></div>
     <div class="tabs" id="tabs"></div>
+    <section id="pane-general" hidden></section>
     <section id="pane-games" hidden></section>
+    <section id="pane-feeds" hidden></section>
     <section id="pane-triggers" hidden>
       <p class="muted small" style="margin-top:0">Your own <code>!commands</code> for this server. Same as <code>/trigger</code> in Discord.</p>
       <div id="trigList"></div>
       <details class="card" id="trigNew"><summary id="trigTitle">New trigger</summary><div id="trigForm"></div></details>
     </section>
-    <section id="pane-emoji" hidden></section>
-    <section id="pane-feeds" hidden>
-      <p class="muted small" style="margin-top:0">Set feeds up in Discord with <code>/wotd</code>, <code>/dailyfact</code> and <code>/feeds</code>.</p>
-      <div id="feeds"></div>
-    </section>
   </div>
 </main>
+<div id="savebar" class="savebar" role="region" aria-label="Unsaved changes" inert>
+  <span class="grow">Careful — you have unsaved changes!</span>
+  <button type="button" id="sbReset" class="ghost">Reset</button>
+  <button type="button" id="sbSave" class="primary">Save Changes</button>
+</div>
 <div id="toast" class="toast" hidden></div>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -106,6 +171,10 @@ async function api(u) { const r = await call('GET', u); if (!r.ok) throw new Err
 const short = (ms) => (!ms ? '' : ms % 864e5 === 0 ? `${ms / 864e5}d` : ms % 36e5 === 0 ? `${ms / 36e5}h` : `${Math.round(ms / 6e4)}m`);
 let toastTimer;
 function toast(ok, text) { const t = $('#toast'); t.className = `toast${ok ? '' : ' err'}`; t.textContent = text; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, ok ? 3000 : 7000); }
+const buzz = () => { try { navigator.vibrate?.([70, 40, 70, 40, 70]); } catch {} };
+const shake = (node) => { node.classList.remove('shake'); void node.offsetWidth; node.classList.add('shake'); };
+const CARET = '<svg class="caret" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>';
+const muted = (text) => el('p', { className: 'muted small', textContent: text });
 
 // ---- small building blocks ----
 const field = (label, node) => el('label', { className: 'field' }, el('span', { textContent: label }), node);
@@ -118,88 +187,422 @@ function seg(options, value, onchange) {
   box.append(...btns.map((x) => x[1])); paint();
   return { node: box, get: () => cur };
 }
-const dirtyOnEdit = (root, save) => { const f = () => { save.disabled = false; }; root.addEventListener('input', f); root.addEventListener('change', f); return f; };
+const sameSet = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
 
+// ---- dropdown menus (profile, server picker) ----
+const closers = [];
+function dropdown(btn, menu) {
+  const close = () => { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+  closers.push(close);
+  btn.onclick = (e) => { e.stopPropagation(); const open = menu.hidden; closers.forEach((c) => c()); if (open) { menu.hidden = false; btn.setAttribute('aria-expanded', 'true'); } };
+  return close;
+}
+document.addEventListener('click', (e) => { if (!e.target.closest('.menu')) closers.forEach((c) => c()); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closers.forEach((c) => c()); });
+
+// ---- floating "unsaved changes" bar (one per tab; only the tab being viewed can be dirty) ----
+let tab = null; let loaded = {}; let ctls = {}; let saving = false;
+const bar = $('#savebar');
+function refreshBar() {
+  const c = ctls[tab]; const d = !!c && c.dirty();
+  bar.classList.toggle('show', d); bar.inert = !d;
+}
+// Returns false (and shakes the bar) when the current tab has unsaved changes.
+function guard() {
+  const c = ctls[tab];
+  if (c && c.dirty()) { shake(bar); buzz(); return false; }
+  return true;
+}
+$('#sbReset').onclick = () => { if (!saving) ctls[tab]?.reset(); };
+$('#sbSave').onclick = async () => {
+  const c = ctls[tab]; if (!c || saving) return;
+  saving = true; $('#sbSave').textContent = 'Saving…'; $('#sbSave').disabled = true; $('#sbReset').disabled = true;
+  try { await c.save(); } finally { saving = false; $('#sbSave').textContent = 'Save Changes'; $('#sbSave').disabled = false; $('#sbReset').disabled = false; refreshBar(); }
+};
+window.addEventListener('beforeunload', (e) => { if (ctls[tab]?.dirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+// A card with a title, description and a toggle. Its settings panel slides down when switched on and back up when off.
+function featureCard({ title, desc, beta, onToggle }) {
+  const t = sw(false, (input) => onToggle(input.checked));
+  const hint = el('p', { className: 'hint', hidden: true });
+  const panel = el('div', { className: 'panel' }, hint);
+  const slide = el('div', { className: 'slide', inert: true }, el('div', { className: 'inner' }, panel));
+  const node = el('div', { className: 'card fcard' },
+    el('div', { className: 'fhead' },
+      el('div', { className: 'grow' }, el('div', { className: 'ftitle' }, el('b', { textContent: title }), beta && el('span', { className: 'badge beta', textContent: 'BETA' })), el('div', { className: 'muted small', textContent: desc })),
+      t.node),
+    slide);
+  return {
+    node, panel,
+    setOpen(v) { t.input.checked = v; slide.classList.toggle('open', v); slide.inert = !v; },
+    setHint(text, kind) { hint.textContent = text || ''; hint.className = `hint ${kind || ''}`; hint.hidden = !text; },
+    setBad(v) { node.classList.toggle('bad', v); },
+    shake() { shake(node); },
+  };
+}
+// (Re)fills a channel <select>. New setups get a "Select a channel…" placeholder, so nothing is chosen for you.
+function fillChannels(select, channels, { isNew, create, value }) {
+  select.replaceChildren();
+  if (isNew) select.append(el('option', { value: '', disabled: true, textContent: 'Select a channel…' }));
+  if (create) select.append(el('option', { value: '__create', textContent: 'Create one for me (Activity category)' }));
+  channels.forEach((c) => select.append(el('option', { value: c.id, textContent: `#${c.name}${c.parent ? ` (${c.parent})` : ''}` })));
+  if (value && value !== '__create' && !channels.some((c) => c.id === value)) select.append(el('option', { value, textContent: 'Unknown channel' }));
+  select.value = value || '';
+}
+
+// ---------------- servers ----------------
 let inviteUrl = '#';
-let guilds = [];
-const curGuild = () => guilds.find((x) => x.id === $('#guild').value);
+let guilds = []; let curId = null;
+const curGuild = () => guilds.find((x) => x.id === curId);
+const gIcon = (g) => (g.icon ? el('img', { className: 'gicon', src: g.icon, alt: '' }) : el('span', { className: 'gicon ph', textContent: (g.name || '?').trim().charAt(0).toUpperCase() }));
+function paintGuilds() {
+  const g = curGuild();
+  $('#guildBtn').replaceChildren(g ? gIcon(g) : el('span', { className: 'gicon ph', textContent: '?' }), el('span', { className: 'nm', textContent: g ? g.name : 'No servers' }), el('span', { innerHTML: CARET, style: 'display:flex' }));
+  $('#guildBtn').disabled = !guilds.length;
+  $('#guildMenu').replaceChildren(...guilds.map((x) => {
+    const b = el('button', { type: 'button', className: `menu-item${x.id === curId ? ' sel' : ''}`, role: 'option' }, gIcon(x), el('span', { className: 'nm', textContent: x.name }));
+    b.onclick = () => { closeGuild(); if (x.id !== curId && guard()) { curId = x.id; paintGuilds(); loadGuild(); } };
+    return b;
+  }));
+}
+const closeGuild = dropdown($('#guildBtn'), $('#guildMenu'));
 
-// ---------------- feeds (read-only) ----------------
-const FEED_NAMES = { wotd: 'Word of the Day', dailyfact: 'Daily Fact' };
-async function loadFeeds(id) {
-  const box = $('#feeds'); box.replaceChildren(el('p', { className: 'muted small', textContent: 'Loading…' }));
-  const r = await call('GET', `/api/guilds/${id}/feeds`);
-  if (curGuild()?.id !== id) return;
-  if (!r.ok) return box.replaceChildren(el('p', { className: 'muted', textContent: 'Could not load feeds.' }));
-  if (!r.data.length) return box.replaceChildren(el('p', { className: 'muted', textContent: 'No feeds set up in this server yet.' }));
-  box.replaceChildren(...r.data.map((f) => el('div', { className: 'item' },
-    el('b', { textContent: FEED_NAMES[f.type] || f.type }), !f.enabled && el('span', { className: 'badge off', textContent: 'Off' }),
-    el('span', { className: 'muted small grow', textContent: `${f.channelId} · every ${short(f.intervalMs)} · ${f.emoji} · next ${new Date(f.nextRunAt).toLocaleString()}` }))));
+async function refreshGuilds() {
+  const btn = $('#refresh');
+  if (btn.classList.contains('spinning') || !guard()) return;
+  btn.classList.add('spinning');
+  const r = await call('POST', '/api/refresh');
+  btn.classList.remove('spinning');
+  if (!r.ok) {
+    toast(false, r.data.error || `Failed (${r.status}).`);
+    if (r.status === 401) setTimeout(() => { location.href = '/auth/discord'; }, 1800);
+    return;
+  }
+  guilds = r.data;
+  if (!guilds.some((x) => x.id === curId)) curId = guilds[0]?.id || null;
+  paintGuilds();
+  await loadGuild();
+  toast(true, 'Servers refreshed.');
+}
+$('#refresh').onclick = refreshGuilds;
+
+// ---------------- general (!emoji) ----------------
+async function loadGeneral(g) {
+  const box = $('#pane-general'); box.replaceChildren(muted('Loading…'));
+  if (!g.features?.emoji?.on) { box.replaceChildren(muted('Nothing to configure here yet.')); return; }
+  const r = await call('GET', `/api/guilds/${g.id}/emoji`);
+  if (curGuild()?.id !== g.id) return;
+  if (!r.ok) return box.replaceChildren(muted(r.data.error === 'not_in_guild' ? 'The bot is not in this server yet.' : (r.data.error || 'Could not load.')));
+  buildEmoji(box, g, r.data);
+}
+
+function buildEmoji(box, g, data) {
+  const { roles } = data;
+  let snap = { enabled: data.config.enabled, defaultPerm: data.config.defaultPerm, userIds: new Set(data.config.userIds), roleIds: new Set(data.config.roleIds) };
+  let d = { enabled: snap.enabled, defaultPerm: snap.defaultPerm, userIds: new Set(snap.userIds), roleIds: new Set(snap.roleIds) };
+  const edit = () => refreshBar();
+
+  const card = featureCard({ title: '!emoji', desc: 'Choose who can add emoji to this server with !emoji. Same as /emoji in Discord.', beta: g.features.emoji.stage === 'beta',
+    onToggle: (on) => { d.enabled = on; card.setOpen(on); edit(); } });
+  const def = check('Anyone with the Manage Expressions permission', d.defaultPerm);
+  def.input.onchange = () => { d.defaultPerm = def.input.checked; edit(); };
+
+  const userChips = el('div', { className: 'chips' });
+  const paintUsers = () => userChips.replaceChildren(...[...d.userIds].map((u) => el('span', { className: 'chip' }, u, el('button', { type: 'button', title: 'Remove', textContent: '×', onclick: () => { d.userIds.delete(u); paintUsers(); edit(); } }))));
+  const userInput = el('input', { type: 'text', placeholder: 'Paste user IDs or @mentions, then press Enter' });
+  const addUsers = () => { const ids = userInput.value.match(/\d{15,25}/g) || []; if (ids.length) { ids.forEach((u) => d.userIds.add(u)); userInput.value = ''; paintUsers(); edit(); } };
+  userInput.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ',') { ev.preventDefault(); addUsers(); } };
+  userInput.onpaste = () => setTimeout(addUsers, 0); userInput.onblur = addUsers;
+
+  const roleChips = el('div', { className: 'chips' });
+  const roleBtns = [];
+  if (!roles.length) roleChips.append(el('span', { className: 'muted small', textContent: 'No roles found.' }));
+  roles.forEach((role) => {
+    const b = el('button', { type: 'button', className: 'chip' }, el('span', { className: 'dot', style: role.color && role.color !== '#000000' ? `background:${role.color}` : '' }), role.name);
+    b.onclick = () => { if (d.roleIds.has(role.id)) d.roleIds.delete(role.id); else d.roleIds.add(role.id); b.classList.toggle('sel', d.roleIds.has(role.id)); edit(); };
+    roleBtns.push([role.id, b]); roleChips.append(b);
+  });
+  card.panel.append(
+    el('label', { className: 'check', style: 'gap:.6rem' }, def.node),
+    el('div', { className: 'field', style: 'margin-top:.7rem' }, el('span', { textContent: 'Roles that can use it' }), roleChips),
+    el('div', { className: 'field', style: 'margin-top:.4rem' }, el('span', { textContent: 'People that can use it' }), userChips, userInput));
+
+  const sync = () => {
+    card.setOpen(d.enabled); def.input.checked = d.defaultPerm; paintUsers();
+    roleBtns.forEach(([id, b]) => b.classList.toggle('sel', d.roleIds.has(id)));
+  };
+  const copy = () => { d = { enabled: snap.enabled, defaultPerm: snap.defaultPerm, userIds: new Set(snap.userIds), roleIds: new Set(snap.roleIds) }; };
+  ctls.general = {
+    dirty: () => d.enabled !== snap.enabled || (d.enabled && (d.defaultPerm !== snap.defaultPerm || !sameSet(d.userIds, snap.userIds) || !sameSet(d.roleIds, snap.roleIds))),
+    reset() { copy(); sync(); refreshBar(); },
+    async save() {
+      addUsers();
+      const body = d.enabled ? { enabled: true, defaultPerm: d.defaultPerm, userIds: [...d.userIds], roleIds: [...d.roleIds] } : { enabled: false };
+      const r = await call('PUT', `/api/guilds/${g.id}/emoji`, body);
+      if (!r.ok) { toast(false, r.data.error || `Failed (${r.status}).`); return false; }
+      if (d.enabled) snap = { enabled: true, defaultPerm: d.defaultPerm, userIds: new Set(d.userIds), roleIds: new Set(d.roleIds) }; else snap.enabled = false;
+      copy(); sync(); toast(true, 'Changes saved.'); return true;
+    },
+  };
+  sync();
+  box.replaceChildren(card.node);
+  refreshBar();
 }
 
 // ---------------- games ----------------
 const GAME_INFO = {
-  countryguess: { title: 'Country Guess', blurb: 'Members play with !countryguess (or !cg) in this channel.' },
-  wordstory: { title: 'Word Story', blurb: 'Members write a story one word at a time.', warn: 'Saving restarts the story and posts a setup message in the channel.' },
-  wordchain: { title: 'Word Chain', blurb: 'Each word must start with the last letter of the previous one.', warn: 'Saving restarts the chain and posts a setup message in the channel.' },
+  countryguess: { title: 'Country Guess', blurb: 'Members guess countries with !countryguess (or !cg) in one channel.' },
+  wordstory: { title: 'Word Story', blurb: 'Members write a story one word at a time.', warn: 'Saving changes restarts the story and posts a setup message in the channel.' },
+  wordchain: { title: 'Word Chain', blurb: 'Each word must start with the last letter of the previous one.', warn: 'Saving changes restarts the chain and posts a setup message in the channel.' },
 };
-
-function renderGame(guildId, key, cfg, channels, limits) {
-  const info = GAME_INFO[key];
-  const card = el('div', { className: 'card' });
-  const head = el('div', { className: 'head' }, el('b', { textContent: info.title }),
-    el('span', { className: `badge ${cfg ? (cfg.enabled ? 'on' : 'off') : ''}`, textContent: cfg ? (cfg.enabled ? 'On' : 'Off') : 'Not set up' }), el('span', { className: 'grow' }));
-  if (cfg) {
-    const t = sw(cfg.enabled, async (input) => {
-      input.disabled = true;
-      const r = await call('POST', `/api/guilds/${guildId}/games/${key}/enabled`, { enabled: input.checked });
-      if (r.ok) { toast(true, r.data.message || (input.checked ? 'Enabled.' : 'Disabled.')); loadGames(); }
-      else { input.checked = !input.checked; input.disabled = false; toast(false, r.data.error || `Failed (${r.status}).`); }
-    });
-    t.node.title = cfg.enabled ? 'Turn off' : 'Turn on';
-    head.append(t.node);
-  }
-  const form = el('div');
-  const select = el('select');
-  if (!cfg) select.append(el('option', { value: '', textContent: 'Create one for me (Activity category)' }));
-  channels.forEach((c) => select.append(el('option', { value: c.id, textContent: `#${c.name}${c.parent ? ` (${c.parent})` : ''}` })));
-  if (cfg) select.value = cfg.channelId;
-  const grid = el('div', { className: 'grid' }, field('Channel', select));
-  const checks = el('div', { className: 'checks' });
-  let trigger; let consecutive; let repeating;
-  if (key === 'wordstory') {
-    trigger = el('input', { type: 'number', min: limits.min, max: limits.max, value: cfg?.trigger ?? limits.default });
-    grid.append(field(`Words per story (${limits.min}-${limits.max})`, trigger));
-    const c = check('Same person can write twice in a row', cfg?.consecutive); consecutive = c.input; checks.append(c.node);
-  }
-  if (key === 'wordchain') {
-    const r = check('Allow repeated words', cfg?.repeatingValid); repeating = r.input; checks.append(r.node);
-    const c = check('Same person can write twice in a row', cfg?.consecutive); consecutive = c.input; checks.append(c.node);
-  }
-  const save = el('button', { className: 'primary', textContent: cfg ? 'Save' : 'Set up', disabled: !!cfg });
-  dirtyOnEdit(form, save);
-  save.onclick = async () => {
-    const body = { channelId: select.value || null };
-    if (trigger) body.trigger = parseInt(trigger.value, 10);
-    if (consecutive) body.consecutive = consecutive.checked;
-    if (repeating) body.repeatingValid = repeating.checked;
-    save.disabled = true; save.textContent = 'Saving…';
-    const r = await call('PUT', `/api/guilds/${guildId}/games/${key}`, body);
-    save.textContent = cfg ? 'Save' : 'Set up';
-    if (r.ok) { toast(true, r.data.message || 'Saved.'); loadGames(); } else { save.disabled = false; toast(false, r.data.error || `Failed (${r.status}).`); }
-  };
-  form.append(grid, checks, el('div', { className: 'foot' }, save, el('span', { className: 'muted small', textContent: info.warn || info.blurb })));
-  card.append(head, el('div', { className: 'muted small', textContent: info.blurb }), form);
-  return card;
-}
+const GAME_KEYS = Object.keys(GAME_INFO);
 
 async function loadGames() {
   const box = $('#pane-games');
   const g = curGuild(); if (!g) return;
+  box.replaceChildren(muted('Loading…'));
   const r = await call('GET', `/api/guilds/${g.id}/games`);
   if (curGuild()?.id !== g.id) return; // the user switched servers meanwhile
-  if (!r.ok) return box.replaceChildren(el('p', { className: 'muted', textContent: r.data.error === 'not_in_guild' ? 'The bot is not in this server yet.' : (r.data.error || 'Could not load games.') }));
-  box.replaceChildren(...Object.keys(GAME_INFO).map((k) => renderGame(g.id, k, r.data.games[k], r.data.channels, r.data.limits.trigger)));
+  if (!r.ok) return box.replaceChildren(muted(r.data.error === 'not_in_guild' ? 'The bot is not in this server yet.' : (r.data.error || 'Could not load games.')));
+  buildGames(box, g.id, r.data);
+}
+
+function buildGames(box, guildId, data) {
+  const limits = data.limits.trigger; let channels = data.channels;
+  const snap = { ...data.games }; // key -> saved config, or null when never set up
+  const drafts = {}; const cards = {}; const bad = {};
+  const fromSnap = (k) => { const c = snap[k]; return { enabled: c ? c.enabled : false, channelId: c ? c.channelId : '', trigger: c?.trigger ?? limits.default, consecutive: !!c?.consecutive, repeatingValid: !!c?.repeatingValid }; };
+  const settingsDiffer = (k) => {
+    const c = snap[k]; const d = drafts[k]; if (!c) return true;
+    if (d.channelId !== c.channelId) return true;
+    if (k === 'wordstory') return d.trigger !== c.trigger || d.consecutive !== !!c.consecutive;
+    if (k === 'wordchain') return d.repeatingValid !== !!c.repeatingValid || d.consecutive !== !!c.consecutive;
+    return false;
+  };
+  const dirtyKey = (k) => { const c = snap[k]; const d = drafts[k]; if (!c) return d.enabled; return d.enabled !== c.enabled || (d.enabled && settingsDiffer(k)); };
+  // Why this game can't be saved as it is right now (null = fine).
+  const problem = (k) => {
+    const d = drafts[k]; if (!d.enabled) return null;
+    if (!snap[k] && d.channelId === '') return 'Finish setting this up, or switch it off.';
+    if (k === 'wordstory' && !(Number.isInteger(d.trigger) && d.trigger >= limits.min && d.trigger <= limits.max)) return `Words per story must be ${limits.min}-${limits.max}.`;
+    return null;
+  };
+  const edit = (k) => { bad[k] = false; paintHint(k); refreshBar(); };
+  function paintHint(k) {
+    const d = drafts[k]; const p = problem(k); const card = cards[k];
+    if (bad[k] && p) card.setHint(p, 'bad');
+    else if (!snap[k] && d.enabled) card.setHint('Not set up yet. Choose a channel, then press Save Changes — or switch it off.', 'warn');
+    else card.setHint(snap[k] ? (GAME_INFO[k].warn || '') : '', '');
+    card.setBad(!!(bad[k] && p));
+  }
+
+  GAME_KEYS.forEach((k) => {
+    const info = GAME_INFO[k];
+    drafts[k] = fromSnap(k);
+    const card = featureCard({ title: info.title, desc: info.blurb, onToggle: (on) => { drafts[k].enabled = on; card.setOpen(on); edit(k); } });
+    cards[k] = card;
+    const select = el('select');
+    select.onchange = () => { drafts[k].channelId = select.value; edit(k); };
+    const grid = el('div', { className: 'grid' }, field('Channel', select));
+    const checks = el('div', { className: 'checks' });
+    let trigger; let cons; let rep;
+    if (k === 'wordstory') {
+      trigger = el('input', { type: 'number', min: limits.min, max: limits.max });
+      trigger.oninput = () => { drafts[k].trigger = parseInt(trigger.value, 10); edit(k); };
+      grid.append(field(`Words per story (${limits.min}-${limits.max})`, trigger));
+    }
+    if (k === 'wordchain') {
+      rep = check('Allow repeated words'); rep.input.onchange = () => { drafts[k].repeatingValid = rep.input.checked; edit(k); }; checks.append(rep.node);
+    }
+    if (k !== 'countryguess') {
+      cons = check('Same person can write twice in a row'); cons.input.onchange = () => { drafts[k].consecutive = cons.input.checked; edit(k); }; checks.append(cons.node);
+    }
+    card.panel.append(grid, checks);
+    card.sync = () => {
+      const d = drafts[k];
+      fillChannels(select, channels, { isNew: !snap[k], create: !snap[k], value: d.channelId });
+      if (trigger) trigger.value = Number.isNaN(d.trigger) ? '' : d.trigger;
+      if (cons) cons.input.checked = d.consecutive;
+      if (rep) rep.input.checked = d.repeatingValid;
+      card.setOpen(d.enabled); paintHint(k);
+    };
+    card.sync();
+  });
+
+  async function saveOne(k) {
+    const c = snap[k]; const d = drafts[k];
+    const path = `/api/guilds/${guildId}/games/${k}`;
+    const toggle = (on) => call('POST', `${path}/enabled`, { enabled: on });
+    if (!d.enabled) return toggle(false);
+    if (!c || settingsDiffer(k)) {
+      const body = { channelId: d.channelId === '__create' ? null : d.channelId };
+      if (k === 'wordstory') { body.trigger = d.trigger; body.consecutive = d.consecutive; }
+      if (k === 'wordchain') { body.repeatingValid = d.repeatingValid; body.consecutive = d.consecutive; }
+      const r = await call('PUT', path, body);
+      if (!r.ok) return r;
+      const f = await call('GET', `/api/guilds/${guildId}/games`); // saving may or may not switch it on; make sure it ends up on
+      if (f.ok && f.data.games[k] && f.data.games[k].enabled !== true) return toggle(true);
+      return r;
+    }
+    return toggle(true);
+  }
+
+  ctls.games = {
+    dirty: () => GAME_KEYS.some(dirtyKey),
+    reset() { GAME_KEYS.forEach((k) => { drafts[k] = fromSnap(k); bad[k] = false; cards[k].sync(); }); refreshBar(); },
+    async save() {
+      const blocked = GAME_KEYS.filter((k) => problem(k));
+      if (blocked.length) {
+        blocked.forEach((k) => { bad[k] = true; paintHint(k); cards[k].shake(); });
+        shake(bar); buzz();
+        toast(false, `Finish ${blocked.map((k) => GAME_INFO[k].title).join(' and ')} first: set ${blocked.length > 1 ? 'them' : 'it'} up, or switch ${blocked.length > 1 ? 'them' : 'it'} off.`);
+        return false;
+      }
+      const done = []; let failed = false;
+      for (const k of GAME_KEYS.filter(dirtyKey)) {
+        const r = await saveOne(k);
+        if (!r.ok) { toast(false, `${GAME_INFO[k].title}: ${r.data.error || `Failed (${r.status}).`}`); failed = true; break; }
+        done.push(k);
+      }
+      if (done.length) {
+        const f = await call('GET', `/api/guilds/${guildId}/games`);
+        if (curGuild()?.id !== guildId) return !failed;
+        if (!f.ok) { await loadGames(); return !failed; }
+        channels = f.data.channels;
+        done.forEach((k) => { snap[k] = f.data.games[k] ?? null; drafts[k] = fromSnap(k); bad[k] = false; cards[k].sync(); });
+      }
+      if (!failed) toast(true, 'Changes saved.');
+      return !failed;
+    },
+  };
+  box.replaceChildren(...GAME_KEYS.map((k) => cards[k].node));
+  refreshBar();
+}
+
+// ---------------- feeds ----------------
+const FEED_INFO = {
+  wotd: { title: 'Word of the Day', blurb: 'Posts a new word in a channel on a schedule.' },
+  dailyfact: { title: 'Daily Fact', blurb: 'Posts an interesting fact in a channel on a schedule.' },
+};
+const FEED_KEYS = Object.keys(FEED_INFO);
+const UNIT_MS = { m: 6e4, h: 36e5, d: 864e5 };
+const parseInterval = (ms) => (ms % 864e5 === 0 ? { amount: ms / 864e5, unit: 'd' } : ms % 36e5 === 0 ? { amount: ms / 36e5, unit: 'h' } : { amount: Math.max(1, Math.round(ms / 6e4)), unit: 'm' });
+
+async function loadFeeds(id) {
+  const box = $('#pane-feeds'); box.replaceChildren(muted('Loading…'));
+  const r = await call('GET', `/api/guilds/${id}/feeds`);
+  if (curGuild()?.id !== id) return;
+  if (!r.ok) return box.replaceChildren(muted(r.data.error === 'not_in_guild' ? 'The bot is not in this server yet.' : (r.data.error || 'Could not load feeds.')));
+  buildFeeds(box, id, r.data);
+}
+
+function buildFeeds(box, guildId, data) {
+  let channels = data.channels; const { roles, limits, defaults } = data;
+  const snap = { ...data.feeds };
+  const drafts = {}; const cards = {}; const bad = {};
+  const fromSnap = (k) => {
+    const c = snap[k]; const iv = parseInterval(c ? c.intervalMs : 864e5);
+    return { enabled: c ? c.enabled : false, channelId: c ? c.channelId : '', roleId: c?.roleId || '', emoji: c ? c.emoji : defaults[k].emoji, amount: iv.amount, unit: iv.unit };
+  };
+  const ms = (d) => d.amount * UNIT_MS[d.unit];
+  const settingsDiffer = (k) => {
+    const c = snap[k]; const d = drafts[k]; if (!c) return true;
+    return d.channelId !== c.channelId || d.roleId !== (c.roleId || '') || d.emoji.trim() !== c.emoji || ms(d) !== c.intervalMs;
+  };
+  const dirtyKey = (k) => { const c = snap[k]; const d = drafts[k]; if (!c) return d.enabled; return d.enabled !== c.enabled || (d.enabled && settingsDiffer(k)); };
+  const problem = (k) => {
+    const d = drafts[k]; if (!d.enabled) return null;
+    if (!d.channelId) return 'Finish setting this up, or switch it off.';
+    if (!d.emoji.trim()) return 'Add an emoji.';
+    const v = ms(d);
+    if (!snap[k] || v !== snap[k].intervalMs) {
+      if (!Number.isInteger(v) || v < limits.minMs || v > limits.maxMs) return 'The interval must be between 1 hour and 30 days.';
+    }
+    return null;
+  };
+  const edit = (k) => { bad[k] = false; paintHint(k); refreshBar(); };
+  function paintHint(k) {
+    const d = drafts[k]; const p = problem(k); const card = cards[k];
+    if (bad[k] && p) card.setHint(p, 'bad');
+    else if (!snap[k] && d.enabled) card.setHint('Not set up yet. Choose a channel, then press Save Changes — or switch it off.', 'warn');
+    else if (snap[k]?.failures > 0) card.setHint('The last post failed. Check the bot can send messages in that channel.', 'warn');
+    else card.setHint('', '');
+    card.setBad(!!(bad[k] && p));
+  }
+
+  FEED_KEYS.forEach((k) => {
+    const info = FEED_INFO[k];
+    drafts[k] = fromSnap(k);
+    const card = featureCard({ title: info.title, desc: info.blurb, onToggle: (on) => { drafts[k].enabled = on; card.setOpen(on); edit(k); } });
+    cards[k] = card;
+    const select = el('select'); select.onchange = () => { drafts[k].channelId = select.value; edit(k); };
+    const role = el('select'); role.onchange = () => { drafts[k].roleId = role.value; edit(k); };
+    const emoji = el('input', { type: 'text', maxLength: 64 }); emoji.oninput = () => { drafts[k].emoji = emoji.value; edit(k); };
+    const amount = el('input', { type: 'number', min: 1, step: 1, style: 'width:90px' }); amount.oninput = () => { drafts[k].amount = parseInt(amount.value, 10); edit(k); };
+    const unit = el('select', { style: 'width:auto' }, el('option', { value: 'm', textContent: 'minutes' }), el('option', { value: 'h', textContent: 'hours' }), el('option', { value: 'd', textContent: 'days' }));
+    unit.onchange = () => { drafts[k].unit = unit.value; edit(k); };
+    const next = el('span', { className: 'muted small grow' });
+    const del = el('button', { type: 'button', className: 'ghost danger', textContent: 'Delete feed' });
+    del.onclick = async () => {
+      if (!confirm(`Delete the ${info.title} feed? Its settings are removed. Unsaved changes on this tab are discarded.`)) return;
+      del.disabled = true;
+      const r = await call('DELETE', `/api/guilds/${guildId}/feeds/${k}`);
+      if (r.ok) { toast(true, 'Feed deleted.'); loaded.feeds = false; ctls.feeds = null; await loadFeeds(guildId); loaded.feeds = true; refreshBar(); }
+      else { del.disabled = false; toast(false, r.data.error || `Failed (${r.status}).`); }
+    };
+    card.panel.append(
+      el('div', { className: 'grid' }, field('Channel', select), field('Ping role (optional)', role), field('Emoji', emoji), field('Post every', el('div', { className: 'row' }, amount, unit))),
+      el('div', { className: 'foot' }, next, del));
+    card.sync = () => {
+      const d = drafts[k]; const c = snap[k];
+      fillChannels(select, channels, { isNew: !c, create: false, value: d.channelId });
+      role.replaceChildren(el('option', { value: '', textContent: 'No role ping' }), ...roles.map((r) => el('option', { value: r.id, textContent: `@${r.name}` })));
+      if (d.roleId && !roles.some((r) => r.id === d.roleId)) role.append(el('option', { value: d.roleId, textContent: 'Unknown role' }));
+      role.value = d.roleId;
+      emoji.value = d.emoji; amount.value = Number.isNaN(d.amount) ? '' : d.amount; unit.value = d.unit;
+      next.textContent = c && c.enabled ? `Next post: ${new Date(c.nextRunAt).toLocaleString()}` : '';
+      del.hidden = !c;
+      card.setOpen(d.enabled); paintHint(k);
+    };
+    card.sync();
+  });
+
+  async function saveOne(k) {
+    const d = drafts[k]; const c = snap[k];
+    const body = d.enabled ? { enabled: true, channelId: d.channelId, roleId: d.roleId || null, emoji: d.emoji.trim(), intervalMs: ms(d) } : { enabled: false };
+    if (c && d.enabled && !settingsDiffer(k)) return call('PUT', `/api/guilds/${guildId}/feeds/${k}`, { enabled: true });
+    return call('PUT', `/api/guilds/${guildId}/feeds/${k}`, body);
+  }
+  ctls.feeds = {
+    dirty: () => FEED_KEYS.some(dirtyKey),
+    reset() { FEED_KEYS.forEach((k) => { drafts[k] = fromSnap(k); bad[k] = false; cards[k].sync(); }); refreshBar(); },
+    async save() {
+      const blocked = FEED_KEYS.filter((k) => problem(k));
+      if (blocked.length) {
+        blocked.forEach((k) => { bad[k] = true; paintHint(k); cards[k].shake(); });
+        shake(bar); buzz();
+        toast(false, `Finish ${blocked.map((k) => FEED_INFO[k].title).join(' and ')} first: set ${blocked.length > 1 ? 'them' : 'it'} up, or switch ${blocked.length > 1 ? 'them' : 'it'} off.`);
+        return false;
+      }
+      const done = []; let failed = false;
+      for (const k of FEED_KEYS.filter(dirtyKey)) {
+        const r = await saveOne(k);
+        if (!r.ok) { toast(false, `${FEED_INFO[k].title}: ${r.data.error || `Failed (${r.status}).`}`); failed = true; break; }
+        done.push(k);
+      }
+      if (done.length) {
+        const f = await call('GET', `/api/guilds/${guildId}/feeds`);
+        if (curGuild()?.id !== guildId) return !failed;
+        if (!f.ok) { await loadFeeds(guildId); return !failed; }
+        channels = f.data.channels;
+        done.forEach((k) => { snap[k] = f.data.feeds[k] ?? null; drafts[k] = fromSnap(k); bad[k] = false; cards[k].sync(); });
+      }
+      if (!failed) toast(true, 'Changes saved.');
+      return !failed;
+    },
+  };
+  box.replaceChildren(...FEED_KEYS.map((k) => cards[k].node));
+  refreshBar();
 }
 
 // ---------------- triggers (beta) ----------------
@@ -295,96 +698,46 @@ async function loadTriggers(id) {
   renderTriggerForm(null);
 }
 
-// ---------------- !emoji access (beta) ----------------
-async function loadEmoji(id) {
-  const pane = $('#pane-emoji'); pane.replaceChildren(el('p', { className: 'muted small', textContent: 'Loading…' }));
-  const r = await call('GET', `/api/guilds/${id}/emoji`);
-  if (curGuild()?.id !== id) return;
-  if (!r.ok) return pane.replaceChildren(el('p', { className: 'muted', textContent: r.data.error === 'not_in_guild' ? 'The bot is not in this server yet.' : (r.data.error || 'Could not load.') }));
-  const { roles, config } = r.data;
-  const save = el('button', { className: 'primary', textContent: 'Save', disabled: true });
-  const dirty = () => { save.disabled = false; };
-
-  const def = sw(config.defaultPerm, dirty);
-  const users = new Set(config.userIds);
-  const userChips = el('div', { className: 'chips' });
-  const paintUsers = () => userChips.replaceChildren(...[...users].map((u) => el('span', { className: 'chip' }, u, el('button', { type: 'button', title: 'Remove', textContent: '×', onclick: () => { users.delete(u); paintUsers(); dirty(); } }))));
-  const userInput = el('input', { type: 'text', placeholder: 'Paste user IDs or @mentions, then press Enter' });
-  const addUsers = () => { const ids = userInput.value.match(/\d{15,25}/g) || []; if (ids.length) { ids.forEach((u) => users.add(u)); userInput.value = ''; paintUsers(); dirty(); } };
-  userInput.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ',') { ev.preventDefault(); addUsers(); } };
-  userInput.onpaste = () => setTimeout(addUsers, 0); userInput.onblur = addUsers;
-  paintUsers();
-
-  const picked = new Set(config.roleIds);
-  const roleChips = el('div', { className: 'chips' });
-  if (!roles.length) roleChips.append(el('span', { className: 'muted small', textContent: 'No roles found.' }));
-  roles.forEach((role) => {
-    const b = el('button', { type: 'button', className: `chip${picked.has(role.id) ? ' sel' : ''}` }, el('span', { className: 'dot', style: role.color && role.color !== '#000000' ? `background:${role.color}` : '' }), role.name);
-    b.onclick = () => { if (picked.has(role.id)) picked.delete(role.id); else picked.add(role.id); b.classList.toggle('sel'); dirty(); };
-    roleChips.append(b);
-  });
-
-  save.onclick = async () => {
-    addUsers();
-    save.disabled = true;
-    const s = await call('PUT', `/api/guilds/${id}/emoji`, { userIds: [...users], roleIds: [...picked], defaultPerm: def.input.checked });
-    if (s.ok) toast(true, 'Saved.'); else { save.disabled = false; toast(false, s.data.error || `Failed (${s.status}).`); }
-  };
-  const badge = el('span', { className: `badge ${config.enabled ? 'on' : 'off'}`, textContent: config.enabled ? 'On' : 'Off' });
-  const power = sw(config.enabled, async (input) => {
-    input.disabled = true;
-    const s = await call('PUT', `/api/guilds/${id}/emoji`, { enabled: input.checked }); // only this setting changes
-    input.disabled = false;
-    if (s.ok) { badge.className = `badge ${input.checked ? 'on' : 'off'}`; badge.textContent = input.checked ? 'On' : 'Off'; toast(true, input.checked ? '!emoji enabled.' : '!emoji disabled.'); }
-    else { input.checked = !input.checked; toast(false, s.data.error || `Failed (${s.status}).`); }
-  });
-  power.node.title = 'Turn !emoji on or off';
-  pane.replaceChildren(el('div', { className: 'card' },
-    el('div', { className: 'head' }, el('b', { textContent: '!emoji' }), badge, el('span', { className: 'grow' }), power.node),
-    el('p', { className: 'muted small', style: 'margin:.2rem 0 .5rem', textContent: 'Who can use !emoji to add emoji to this server. Same as /emoji in Discord.' }),
-    el('label', { className: 'check', style: 'gap:.6rem' }, def.node, 'Anyone with the Manage Expressions permission'),
-    el('div', { className: 'field', style: 'margin-top:.7rem' }, el('span', { textContent: 'Roles that can use it' }), roleChips),
-    el('div', { className: 'field', style: 'margin-top:.4rem' }, el('span', { textContent: 'People that can use it' }), userChips, userInput),
-    el('div', { className: 'foot' }, save)));
-}
-
-// ---------------- servers and tabs ----------------
-let tab = null; let loaded = {};
+// ---------------- tabs ----------------
+const PANES = ['general', 'games', 'feeds', 'triggers'];
 const LOADERS = {
+  general: (g) => loadGeneral(g),
   games: () => loadGames(),
-  triggers: (g) => loadTriggers(g.id),
-  emoji: (g) => loadEmoji(g.id),
   feeds: (g) => loadFeeds(g.id),
+  triggers: (g) => loadTriggers(g.id),
 };
 async function openTab(name) {
   const g = curGuild(); if (!g) return;
+  if (name !== tab && !guard()) return;
   tab = name;
   try { localStorage.setItem('tab', name); } catch {}
   document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('sel', b.dataset.tab === name));
-  for (const k of Object.keys(LOADERS)) $(`#pane-${k}`).hidden = k !== name;
+  for (const k of PANES) $(`#pane-${k}`).hidden = k !== name;
+  refreshBar();
   if (!loaded[name]) { loaded[name] = true; await LOADERS[name](g); }
+  refreshBar();
 }
 
 async function loadGuild() {
   const g = curGuild();
   try { localStorage.setItem('guild', g?.id || ''); } catch {}
-  loaded = {};
+  loaded = {}; ctls = {};
+  refreshBar();
   $('#betaTag').hidden = !g?.beta; // this server has beta access
   const banner = $('#banner'); banner.hidden = true;
-  const tabs = [];
-  if (g?.admin) tabs.push(['games', 'Games']);
-  if (g?.admin && g.features?.trigger?.on) tabs.push(['triggers', 'Triggers', g.features.trigger.stage === 'beta']);
-  if (g?.admin && g.features?.emoji?.on) tabs.push(['emoji', '!emoji', g.features.emoji.stage === 'beta']);
-  tabs.push(['feeds', 'Feeds']);
-  if (!g) { $('#tabs').replaceChildren(); Object.keys(LOADERS).forEach((k) => { $(`#pane-${k}`).hidden = true; }); return; }
-  if (g.botIn === false) { // the bot is not there: nothing to configure yet
-    $('#tabs').replaceChildren(); Object.keys(LOADERS).forEach((k) => { $(`#pane-${k}`).hidden = true; });
-    banner.replaceChildren(el('div', { className: 'head' }, el('span', { className: 'grow', textContent: 'The bot is not in this server yet.' }), el('a', { href: inviteUrl, target: '_blank', rel: 'noopener' }, el('button', { className: 'primary', textContent: 'Add bot' }))));
+  PANES.forEach((k) => { $(`#pane-${k}`).hidden = true; });
+  if (!g) {
+    $('#tabs').replaceChildren(); tab = null;
+    banner.replaceChildren(el('div', { className: 'head' }, el('span', { className: 'grow muted', textContent: 'No servers to show. You need the Administrator permission in a server that has the bot. Just added it or changed permissions? Press refresh.' }),
+      el('a', { href: inviteUrl, target: '_blank', rel: 'noopener' }, el('button', { className: 'primary', textContent: 'Invite server.bot' }))));
     banner.hidden = false; return;
   }
-  if (!g.admin) { banner.replaceChildren(el('span', { className: 'muted small', textContent: 'Games, triggers and !emoji need the Administrator permission in this server.' })); banner.hidden = false; }
+  const tabs = [['general', 'General', false], ['games', 'Games', false], ['feeds', 'Feeds', false]];
+  if (g.features?.trigger?.on) tabs.push(['triggers', 'Triggers', g.features.trigger.stage === 'beta']);
   $('#tabs').replaceChildren(...tabs.map(([k, label, beta]) => el('button', { type: 'button', dataset: { tab: k }, onclick: () => openTab(k) }, label, beta && el('span', { className: 'badge beta', textContent: 'BETA' }))));
-  let want = 'games'; try { want = localStorage.getItem('tab') || 'games'; } catch {}
+  let want = 'general'; try { want = localStorage.getItem('tab') || 'general'; } catch {}
+  if (want === 'emoji') want = 'general';
+  tab = null;
   await openTab(tabs.some((t) => t[0] === want) ? want : tabs[0][0]);
 }
 
@@ -392,19 +745,19 @@ async function loadGuild() {
   let ready = false;
   try { inviteUrl = (await api('/api/invite')).url; $('#invite').href = inviteUrl; } catch {}
   try {
+    const me = await api('/api/me');
     guilds = await api('/api/guilds');
-    $('#who').textContent = (await api('/api/me')).username;
-    guilds.forEach((g) => $('#guild').append(el('option', { value: g.id, textContent: g.name })));
-    try { const last = localStorage.getItem('guild'); if (last && guilds.some((g) => g.id === last)) $('#guild').value = last; } catch {}
-    $('#guild').onchange = loadGuild;
+    $('#uname').textContent = me.name || me.username;
+    $('#avatar').src = me.avatar;
+    try { const last = localStorage.getItem('guild'); curId = guilds.some((g) => g.id === last) ? last : guilds[0]?.id || null; } catch { curId = guilds[0]?.id || null; }
+    dropdown($('#userBtn'), $('#userMenu'));
+    paintGuilds();
     ready = true;
   } catch { /* not logged in */ }
-  if (!ready) { $('#loading').hidden = true; $('#login').hidden = false; $('#inviteWrap').hidden = false; return; }
-  $('#logout').hidden = false;
+  if (!ready) { $('#loading').hidden = true; $('#login').hidden = false; return; }
+  $('#userWrap').hidden = false;
   // Load the first tab before revealing the page (no half-loaded flicker), and always remove the spinner.
-  try {
-    if (guilds.length) await loadGuild(); else { $('#banner').textContent = 'No servers you manage.'; $('#banner').hidden = false; }
-  } catch (e) { console.error(e); }
-  finally { $('#loading').hidden = true; $('#app').hidden = false; $('#inviteWrap').hidden = false; }
+  try { await loadGuild(); } catch (e) { console.error(e); }
+  finally { $('#loading').hidden = true; $('#app').hidden = false; }
 })();
 </script></body></html>
