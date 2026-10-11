@@ -154,7 +154,7 @@ const WebJob = mongoose.models.WebJob || mongoose.model('WebJob', (() => {
   const s = new Schema({
     guildId: { type: String, required: true },
     userId: { type: String, required: true }, // the logged-in website user; the bot re-checks they are an Administrator
-    game: { type: String, enum: ['countryguess', 'wordstory', 'wordchain', 'trigger'], required: true },
+    game: { type: String, enum: ['countryguess', 'wordstory', 'wordchain', 'trigger', 'emoji'], required: true },
     action: { type: String, enum: ['save', 'toggle', 'delete'], required: true },
     payload: { type: Schema.Types.Mixed, default: {} },
     status: { type: String, enum: ['pending', 'running', 'done', 'error'], default: 'pending' },
@@ -174,6 +174,14 @@ const GuildInfo = mongoose.models.GuildInfo || mongoose.model('GuildInfo', new S
   updatedAt: { type: Date, default: Date.now },
 }));
 
+// Who can use !emoji in a server (set with /emoji or on the website). Manage Expressions is the default permission.
+const EmojiConfig = mongoose.models.EmojiConfig || mongoose.model('EmojiConfig', new Schema({
+  guildId: { type: String, required: true, unique: true },
+  userIds: { type: [String], default: [] },
+  roleIds: { type: [String], default: [] },
+  defaultPerm: { type: Boolean, default: true }, // true: members with Manage Expressions can use it too
+}));
+
 // Beta system: which commands are beta (!config) and which servers have beta access (!betaaccess).
 const FeatureFlag = mongoose.models.FeatureFlag || mongoose.model('FeatureFlag', new Schema({
   name: { type: String, required: true, unique: true },
@@ -184,4 +192,4 @@ const BetaGuild = mongoose.models.BetaGuild || mongoose.model('BetaGuild', new S
   addedAt: { type: Date, default: Date.now },
 }));
 
-module.exports = { FeatureFlag, BetaGuild, WebJob, GuildInfo, BlockedGuild, Feed, Used, QuoteConfig, Quote, BumpConfig, LogConfig, AfkConfig, AfkStatus, CountryGuessConfig, WordStoryConfig, WordChainConfig, TriggerConfig };
+module.exports = { EmojiConfig, FeatureFlag, BetaGuild, WebJob, GuildInfo, BlockedGuild, Feed, Used, QuoteConfig, Quote, BumpConfig, LogConfig, AfkConfig, AfkStatus, CountryGuessConfig, WordStoryConfig, WordChainConfig, TriggerConfig };

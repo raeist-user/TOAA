@@ -10,7 +10,7 @@ const passport = require('passport');
 const { Strategy } = require('passport-discord');
 const mongoose = require('mongoose');
 const path = require('path');
-const { Feed, CountryGuessConfig, WordStoryConfig, WordChainConfig, TriggerConfig, FeatureFlag, BetaGuild, WebJob, GuildInfo } = require('./models');
+const { Feed, CountryGuessConfig, WordStoryConfig, WordChainConfig, TriggerConfig, EmojiConfig, FeatureFlag, BetaGuild, WebJob, GuildInfo } = require('./models');
 const { SERVER_ID, DEFAULT_BETA } = require('./botconfig'); // from bot.json
 
 // The OAuth2 redirect must match, character for character, one of the Redirects in
@@ -116,7 +116,7 @@ app.get('/api/guilds', authed, wrap(async (req, res) => {
     list.forEach((g) => {
       g.botIn = inSet.has(g.id);
       g.beta = acc.hasBeta(g.id);
-      g.features = { trigger: { on: acc.can('trigger', g.id), stage: acc.stage('trigger') } };
+      g.features = { trigger: { on: acc.can('trigger', g.id), stage: acc.stage('trigger') }, emoji: { on: acc.can('emoji', g.id), stage: acc.stage('emoji') } };
     });
   }
   res.json(list);
@@ -216,6 +216,30 @@ app.put('/api/guilds/:id/triggers', authed, jsonOnly, adminOnly, triggerGate, wr
 app.delete('/api/guilds/:id/triggers/:name', authed, adminOnly, triggerGate, wrap(async (req, res) => {
   if (!/^[a-zA-Z]{1,40}$/.test(req.params.name)) return res.status(400).json({ error: 'Bad trigger name.' });
   const r = await runJob(req.params.id, req.user.id, 'trigger', 'delete', { name: req.params.name });
+  res.status(r.status).json(r.data);
+}));
+
+// ---- !emoji access (beta): who can use !emoji, Administrator only ----
+const emojiGate = wrap(async (req, res, next) => {
+  const acc = await loadAccess([req.params.id]);
+  return acc.can('emoji', req.params.id) ? next() : res.status(403).json({ error: '!emoji is not available for this server yet.' });
+});
+app.get('/api/guilds/:id/emoji', authed, adminOnly, emojiGate, wrap(async (req, res) => {
+  const guildId = req.params.id;
+  const info = await GuildInfo.findOne({ guildId }).lean();
+  if (!info) return res.status(404).json({ error: 'not_in_guild' });
+  const cfg = await EmojiConfig.findOne({ guildId }).lean();
+  res.json({
+    roles: info.roles.map((r) => ({ id: r.id, name: r.name, color: r.color })),
+    config: { userIds: cfg?.userIds ?? [], roleIds: cfg?.roleIds ?? [], defaultPerm: cfg?.defaultPerm ?? true },
+  });
+}));
+app.put('/api/guilds/:id/emoji', authed, jsonOnly, adminOnly, emojiGate, wrap(async (req, res) => {
+  if (Date.now() - (recent.get(`e:${req.user.id}:${req.params.id}`) ?? 0) < 2000) return res.status(429).json({ error: 'Slow down a little.' });
+  recent.set(`e:${req.user.id}:${req.params.id}`, Date.now());
+  const b = req.body || {};
+  const ids = (v) => (Array.isArray(v) ? [...new Set(v.filter((x) => typeof x === 'string' && /^\d{15,25}$/.test(x)))].slice(0, 50) : []);
+  const r = await runJob(req.params.id, req.user.id, 'emoji', 'save', { userIds: ids(b.userIds), roleIds: ids(b.roleIds), defaultPerm: b.defaultPerm !== false });
   res.status(r.status).json(r.data);
 }));
 
